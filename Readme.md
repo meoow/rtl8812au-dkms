@@ -1,6 +1,6 @@
 #Realtek 802.11ac (rtl8812au) Linux Driver Version 4.3.8
 
-The driver was originally from [Here](http://www.comfast.cn/upload/%E8%BD%AF%E4%BB%B6%E9%A9%B1%E5%8A%A8/%E7%BD%91%E5%8D%A1%E7%B1%BB/8812AU%20912%E3%80%817500AC/linux/RTL8812AU_linux_v4.3.8_12175.20140902.zip).  
+The driver was originally from [HERE](http://www.comfast.cn/upload/%E8%BD%AF%E4%BB%B6%E9%A9%B1%E5%8A%A8/%E7%BD%91%E5%8D%A1%E7%B1%BB/8812AU%20912%E3%80%817500AC/linux/RTL8812AU_linux_v4.3.8_12175.20140902.zip).  
 
 I tweaked the Makefile a bit in order to compile it on Raspberry Pi, which is the default platform in this configuration, as well as make it compatible with dkms.
 
@@ -8,7 +8,7 @@ You should change the target platform in Makefile if you want to build it for di
 
 The driver was tested on **Raspberry Pi 2** under updated **ArchLinux ARM** for **Comfast CF-912AC**
 
-Note that the kernel should has configuration as below[1]:
+Note that the kernel should has configuration as below<sup>[1]</sup>:
 ```
 [*] Networking support --->
       <*>   Wireless --->
