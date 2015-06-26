@@ -338,6 +338,10 @@ int rtw_android_pno_enable(struct net_device *net, int pno_enable) {
 }
 #endif //CONFIG_PNO_SUPPORT
 
+#ifndef strnicmp
+#define strnicmp strncasecmp
+#endif
+
 int rtw_android_cmdstr_to_num(char *cmdstr)
 {
 	int cmd_num;
