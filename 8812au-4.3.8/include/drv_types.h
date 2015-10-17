@@ -271,7 +271,7 @@ struct registry_priv
 	u8	hw_wps_pbc;//0:disable,1:enable
 
 #ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
-	char	adaptor_info_caching_file_path[PATH_LENGTH_MAX];
+	char	adaptor_info_caching_phy_para_file_path[PATH_LENGTH_MAX];
 #endif
 
 #ifdef CONFIG_LAYER2_ROAMING
