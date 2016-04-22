@@ -17,9 +17,13 @@
  *
  *
  ******************************************************************************/
+
 #ifndef __RTW_DEBUG_H__
 #define __RTW_DEBUG_H__
 
+#include <linux/version.h>
+
+__printf(2, 3) int _seq_printf(struct seq_file *, const char *, ...);
 
 #define _drv_always_		1
 #define _drv_emerg_			2
@@ -184,7 +188,11 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 	#define _seqdump(sel, fmt, arg...) _dbgdump(fmt, ##arg)
 #elif defined PLATFORM_LINUX
 	#define _dbgdump printk
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,3,0)
 	#define _seqdump seq_printf
+#else
+	#define _seqdump _seq_printf
+#endif
 #elif defined PLATFORM_FREEBSD
 	#define _dbgdump printf
 	#define _seqdump(sel, fmt, arg...) _dbgdump(fmt, ##arg)
@@ -229,7 +237,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 		if (sel == RTW_DBGDUMP)\
 			_DBG_871X_LEVEL(_drv_always_, fmt, ##arg); \
 		else {\
-			_seqdump(sel, fmt, ##arg) /*rtw_warn_on(1)*/; \
+			if(_seqdump(sel, fmt, ##arg)) /*rtw_warn_on(1)*/; \
 		} \
 	}while(0)
 
@@ -239,7 +247,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 		if (sel == RTW_DBGDUMP)\
 			DBG_871X_LEVEL(_drv_always_, fmt, ##arg); \
 		else {\
-			_seqdump(sel, fmt, ##arg) /*rtw_warn_on(1)*/; \
+			if(_seqdump(sel, fmt, ##arg)) /*rtw_warn_on(1)*/; \
 		} \
 	}while(0)
 

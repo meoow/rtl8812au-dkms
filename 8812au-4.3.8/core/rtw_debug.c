@@ -19,7 +19,16 @@
  ******************************************************************************/
 #define _RTW_DEBUG_C_
 
+#include <linux/seq_file.h>
 #include <drv_types.h>
+
+int _seq_printf(struct seq_file *m, const char *f, ...) {
+	va_list args;
+	va_start(args,f);
+	seq_printf(m,f,args);
+	va_end(args);
+	return seq_has_overflowed(m);
+}
 
 u32 GlobalDebugLevel = _drv_err_;
 
