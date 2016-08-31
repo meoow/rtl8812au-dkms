@@ -19,8 +19,16 @@
  ******************************************************************************/
 #define _RTW_DEBUG_C_
 
+#include <linux/version.h>
 #include <linux/seq_file.h>
 #include <drv_types.h>
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0))
+static inline bool seq_has_overflowed(struct seq_file *m)
+{
+	return m->count == m->size;
+}
+#endif
 
 int _seq_printf(struct seq_file *m, const char *f, ...) {
 	va_list args;
