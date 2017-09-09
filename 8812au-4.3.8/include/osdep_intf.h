@@ -120,11 +120,6 @@ int rtw_ndev_notifier_register(void);
 void rtw_ndev_notifier_unregister(void);
 
 #include "../os_dep/linux/rtw_proc.h"
-
-#ifdef CONFIG_IOCTL_CFG80211
-#include "../os_dep/linux/ioctl_cfg80211.h"
-#endif //CONFIG_IOCTL_CFG80211
-
 #endif //PLATFORM_LINUX
 
 
@@ -133,6 +128,11 @@ extern int rtw_ioctl(struct ifnet * ifp, u_long cmd, caddr_t data);
 #endif
 
 void rtw_ips_dev_unload(_adapter *padapter);
+
+#ifdef CONFIG_RF_GAIN_OFFSET
+void rtw_bb_rf_gain_offset(_adapter *padapter);
+#endif //CONFIG_RF_GAIN_OFFSET
+
 
 #ifdef CONFIG_IPS
 int rtw_ips_pwr_up(_adapter *padapter);

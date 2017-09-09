@@ -309,12 +309,8 @@
 #define	AcmHw_ViqStatus_8192E			BIT(6)
 #define	AcmHw_BeqStatus_8192E			BIT(7)
 
-//========================================================
-// General definitions
-//========================================================
 
-#define MACID_NUM_8192E 128
-#define CAM_ENTRY_NUM_8192E 64
+
 
 #endif //__RTL8192E_SPEC_H__
 

@@ -20,6 +20,8 @@
 //***** temporarily flag *******
 #define CONFIG_SINGLE_IMG
 //#define CONFIG_DISABLE_ODM
+//for FPGA VERIFICATION config
+#define RTL8188E_FPGA_TRUE_PHY_VERIFICATION 0
 
 //***** temporarily flag *******
 /*
@@ -36,11 +38,11 @@
 #define PLATFORM_LINUX	1
 
 
-//#define CONFIG_IOCTL_CFG80211 1
+#define CONFIG_IOCTL_CFG80211 1
 
 #ifdef CONFIG_IOCTL_CFG80211
-	//#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
-	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
+	#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
+	//#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211 
 	//#define CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
 	#define CONFIG_SET_SCAN_DENY_TIMER
@@ -49,6 +51,7 @@
 /*
  * Internal  General Config
  */
+//#define CONFIG_PWRCTRL
 //#define CONFIG_H2CLBK
 
 #define CONFIG_EMBEDDED_FWIMG	1
@@ -196,11 +199,13 @@
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
 //#define CONFIG_SIGNAL_DISPLAY_DBM //display RX signal with dbm
-#ifdef CONFIG_SIGNAL_DISPLAY_DBM
-//#define CONFIG_BACKGROUND_NOISE_MONITOR
-#endif
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
 #define CONFIG_DEAUTH_BEFORE_CONNECT
+
+#define CONFIG_BR_EXT	1	// Enable NAT2.5 support for STA mode interface with a L2 Bridge
+#ifdef CONFIG_BR_EXT
+#define CONFIG_BR_EXT_BRNAME	"br0"
+#endif	// CONFIG_BR_EXT
 
 #define CONFIG_TX_MCAST2UNI	1	// Support IP multicast->unicast
 //#define CONFIG_CHECK_AC_LIFETIME 1	// Check packet lifetime of 4 ACs.
@@ -224,18 +229,11 @@
  */
 //#define CONFIG_USE_USB_BUFFER_ALLOC_TX 1	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
 //#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
+
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
 #undef CONFIG_PREALLOC_RECV_SKB
-#else
-	#ifdef CONFIG_PREALLOC_RECV_SKB
-//		#define CONFIG_FIX_NR_BULKIN_BUFFER		// only use USB prealloc_recv_buffer, no use alloc_skb()
-	#endif
 #endif
 
-#ifdef CONFIG_WOWLAN
-// 1 spatial stream for lower power mode when entering suspend
-	//#define CONFIG_LOWPR_1SS 
-#endif
 
 /* 
  * USB VENDOR REQ BUFFER ALLOCATION METHOD
@@ -249,7 +247,6 @@
 
 //#define CONFIG_USB_SUPPORT_ASYNC_VDN_REQ 1
 
-#define WAKEUP_GPIO_IDX	1	//WIFI Chip Side
 
 /*
  * HAL  Related Config
@@ -298,6 +295,10 @@
 	
 #endif//CONFIG_PLATFORM_MN10300
 
+#ifdef CONFIG_PLATFORM_TI_DM365
+#define CONFIG_USE_USB_BUFFER_ALLOC_RX 
+#endif
+
 
 #if defined(CONFIG_PLATFORM_ACTIONS_ATM702X)
 	#ifdef CONFIG_USB_TX_AGGREGATION	
@@ -345,8 +346,7 @@
 #endif
 #define RTL8723B_SUPPORT				0
 #define RTL8192E_SUPPORT				0
-#define RTL8814A_SUPPORT				0
-#define 	RTL8195A_SUPPORT				0
+#define RTL8813A_SUPPORT				0
 
 #define RATE_ADAPTIVE_SUPPORT 			0
 #define POWER_TRAINING_ACTIVE			0
@@ -366,10 +366,10 @@
  */
 #define DBG	0
 
-// #define CONFIG_DEBUG /* DBG_871X, etc... */
+//#define CONFIG_DEBUG /* DBG_871X, etc... */
 //#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
 
-// #define CONFIG_PROC_DEBUG
+#define CONFIG_PROC_DEBUG
 
 //#define DBG_CONFIG_ERROR_DETECT
 //#define DBG_CONFIG_ERROR_DETECT_INT

@@ -109,10 +109,7 @@
 // General definitions
 //========================================================
 
-#define MACID_NUM_92D 32
-#define CAM_ENTRY_NUM_92D 32
-
 #include "basic_types.h"
 
-#endif /* __RTL8192D_SPEC_H__ */
+#endif
 

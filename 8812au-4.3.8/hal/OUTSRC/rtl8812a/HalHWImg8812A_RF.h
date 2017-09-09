@@ -22,6 +22,8 @@
 #ifndef __INC_MP_RF_HW_IMG_8812A_H
 #define __INC_MP_RF_HW_IMG_8812A_H
 
+//static BOOLEAN CheckPositive(PDM_ODM_T pDM_Odm, const u4Byte Condition1, const u4Byte Condition2);
+//static BOOLEAN CheckNegative(PDM_ODM_T pDM_Odm, const u4Byte Condition1, const u4Byte Condition2);
 
 /******************************************************************************
 *                           RadioA.TXT
@@ -31,7 +33,8 @@ void
 ODM_ReadAndConfig_MP_8812A_RadioA( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_RadioA(void);
+u4Byte
+ODM_GetVersion_MP_8812A_RadioA(VOID);
 
 /******************************************************************************
 *                           RadioB.TXT
@@ -41,7 +44,8 @@ void
 ODM_ReadAndConfig_MP_8812A_RadioB( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_RadioB(void);
+u4Byte
+ODM_GetVersion_MP_8812A_RadioB(VOID);
 
 /******************************************************************************
 *                           TxPowerTrack_AP.TXT
@@ -51,7 +55,8 @@ void
 ODM_ReadAndConfig_MP_8812A_TxPowerTrack_AP( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_TxPowerTrack_AP(void);
+u4Byte
+ODM_GetVersion_MP_8812A_TxPowerTrack_AP(VOID);
 
 /******************************************************************************
 *                           TxPowerTrack_PCIE.TXT
@@ -61,7 +66,8 @@ void
 ODM_ReadAndConfig_MP_8812A_TxPowerTrack_PCIE( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_TxPowerTrack_PCIE(void);
+u4Byte
+ODM_GetVersion_MP_8812A_TxPowerTrack_PCIE(VOID);
 
 /******************************************************************************
 *                           TxPowerTrack_RFE3.TXT
@@ -71,7 +77,8 @@ void
 ODM_ReadAndConfig_MP_8812A_TxPowerTrack_RFE3( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_TxPowerTrack_RFE3(void);
+u4Byte
+ODM_GetVersion_MP_8812A_TxPowerTrack_RFE3(VOID);
 
 /******************************************************************************
 *                           TxPowerTrack_RFE4.TXT
@@ -81,7 +88,8 @@ void
 ODM_ReadAndConfig_MP_8812A_TxPowerTrack_RFE4( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_TxPowerTrack_RFE4(void);
+u4Byte
+ODM_GetVersion_MP_8812A_TxPowerTrack_RFE4(VOID);
 
 /******************************************************************************
 *                           TxPowerTrack_USB.TXT
@@ -91,7 +99,8 @@ void
 ODM_ReadAndConfig_MP_8812A_TxPowerTrack_USB( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_TxPowerTrack_USB(void);
+u4Byte
+ODM_GetVersion_MP_8812A_TxPowerTrack_USB(VOID);
 
 /******************************************************************************
 *                           TXPWR_LMT.TXT
@@ -101,17 +110,8 @@ void
 ODM_ReadAndConfig_MP_8812A_TXPWR_LMT( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_TXPWR_LMT(void);
-
-/******************************************************************************
-*                           TXPWR_LMT_HM812A03.TXT
-******************************************************************************/
-
-void
-ODM_ReadAndConfig_MP_8812A_TXPWR_LMT_HM812A03( // TC: Test Chip, MP: MP Chip
-	IN   PDM_ODM_T  pDM_Odm
-);
-u4Byte ODM_GetVersion_MP_8812A_TXPWR_LMT_HM812A03(void);
+u4Byte
+ODM_GetVersion_MP_8812A_TXPWR_LMT(VOID);
 
 #endif
 #endif // end of HWIMG_SUPPORT

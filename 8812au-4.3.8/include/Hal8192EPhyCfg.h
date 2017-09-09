@@ -139,7 +139,8 @@ PHY_SetSwChnlBWMode8192E(
 
 void 
 phy_SpurCalibration_8192E(
-	IN	PADAPTER			Adapter
+	IN	PADAPTER			Adapter,
+	IN	SPUR_CAL_METHOD	Method
 );
 //
 // BB/MAC/RF other monitor API

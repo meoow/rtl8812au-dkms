@@ -751,7 +751,7 @@ inline void *dbg_rtw_usb_buffer_alloc(struct usb_device *dev, size_t size, dma_a
 	void *p;
 
 	if(match_mstat_sniff_rules(flags, size))
-		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%zu)\n", func, line, __FUNCTION__, size);
+		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%d)\n", func, line, __FUNCTION__, size);
 
 	p = _rtw_usb_buffer_alloc(dev, size, dma);
 	
@@ -768,7 +768,7 @@ inline void dbg_rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *a
 {
 
 	if(match_mstat_sniff_rules(flags, size))
-		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%zu)\n", func, line, __FUNCTION__, size);
+		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%d)\n", func, line, __FUNCTION__, size);
 
 	_rtw_usb_buffer_free(dev, size, addr, dma);
 
@@ -782,7 +782,7 @@ inline void dbg_rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *a
 
 #endif /* defined(DBG_MEM_ALLOC) */
 
-void* rtw_malloc2d(int h, int w, size_t size)
+void* rtw_malloc2d(int h, int w, int size)
 {
 	int j;
 
@@ -804,7 +804,7 @@ void rtw_mfree2d(void *pbuf, int h, int w, int size)
 	rtw_mfree((u8 *)pbuf, h*sizeof(void*) + w*h*size);
 }
 
-void _rtw_memcpy(void* dst, void* src, u32 sz)
+void _rtw_memcpy(void* dst, const void* src, u32 sz)
 {
 
 #if defined (PLATFORM_LINUX)|| defined (PLATFORM_FREEBSD)
@@ -821,7 +821,7 @@ void _rtw_memcpy(void* dst, void* src, u32 sz)
 
 }
 
-int	_rtw_memcmp(void *dst, void *src, u32 sz)
+int	_rtw_memcmp(const void *dst, const void *src, u32 sz)
 {
 
 #if defined (PLATFORM_LINUX)|| defined (PLATFORM_FREEBSD)
@@ -1404,12 +1404,7 @@ void rtw_msleep_os(int ms)
 {
 
 #ifdef PLATFORM_LINUX
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
-	if (ms < 20) {
-		unsigned long us = ms * 1000UL;
-		usleep_range(us, us + 1000UL);
-	} else
-	#endif
+
   	msleep((unsigned int)ms);
 
 #endif	
@@ -1428,19 +1423,16 @@ void rtw_msleep_os(int ms)
 }
 void rtw_usleep_os(int us)
 {
-#ifdef PLATFORM_LINUX
 
-	// msleep((unsigned int)us);
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
-	usleep_range(us, us + 1);	
-	#else
-	if ( 1 < (us/1000) )
-      		msleep(1);
+#ifdef PLATFORM_LINUX
+  	
+      // msleep((unsigned int)us);
+      if ( 1 < (us/1000) )
+                msleep(1);
       else
 		msleep( (us/1000) + 1);
-	#endif
-#endif
 
+#endif	
 #ifdef PLATFORM_FREEBSD
 	//Delay for delay microseconds 
 	DELAY(us);
@@ -2318,10 +2310,6 @@ inline u32 rtw_random32(void)
 #ifdef PLATFORM_LINUX
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
 	return prandom_u32();
-	#elif (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18))
-	u32 random_int;
-	get_random_bytes( &random_int , 4 );
-	return random_int;
 	#else
 	return random32();
 	#endif

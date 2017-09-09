@@ -384,7 +384,7 @@ struct recv_priv
 	//u8 *pallocated_urb_buf;
 	_sema allrxreturnevt;
 	uint	ff_hwaddr;
-	ATOMIC_T	rx_pending_cnt;
+	u8	rx_pending_cnt;
 
 #ifdef CONFIG_USB_INTERRUPT_IN_PIPE
 #ifdef PLATFORM_LINUX
@@ -410,6 +410,9 @@ struct recv_priv
 	struct ifqueue rx_indicate_queue;
 #endif	// CONFIG_RX_INDICATE_QUEUE
 
+#ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
+	_queue	recv_buf_pending_queue;
+#endif	// CONFIG_USE_USB_BUFFER_ALLOC_RX
 #endif //defined(PLATFORM_LINUX) || defined(PLATFORM_FREEBSD)
 
 	u8 *pallocated_recv_buf;
@@ -417,7 +420,7 @@ struct recv_priv
 	_queue	free_recv_buf_queue;
 	u32	free_recv_buf_queue_cnt;
 
-#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI) || defined(CONFIG_USB_HCI) 
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	_queue	recv_buf_pending_queue;
 #endif
 
@@ -439,7 +442,7 @@ struct recv_priv
 	struct rx_raw_rssi raw_rssi_info;
 	#endif
 	//s8 rxpwdb;	
-	s16 noise;	
+	u8 noise;	
 	//int RxSNRdB[2];
 	//s8 RxRssi[2];
 	//int FalseAlmCnt_all;
@@ -455,7 +458,7 @@ struct recv_priv
 	struct smooth_rssi_data signal_qual_data;
 	struct smooth_rssi_data signal_strength_data;
 #endif //CONFIG_NEW_SIGNAL_STAT_PROCESS
-	u16 sink_udpport,pre_rtp_rxseq,cur_rtp_rxseq;
+
 };
 
 #ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS

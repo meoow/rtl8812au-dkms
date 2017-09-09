@@ -425,8 +425,10 @@
 
 #define		RF_TX_BB1					0x23	// 
 
-#define		RF_T_METER_8192E			0x42	// 
-#define		RF_T_METER_88E				0x42	//
+//#if HARDWARE_TYPE_IS_RTL8192D	== 1
+#define		RF_T_METER_92D					0x42	// 
+//#else
+#define		RF_T_METER_88E					0x42	// 
 #define		RF_T_METER					0x24	// 
 
 //#endif

@@ -44,6 +44,7 @@ int ui_pid[3] = {0, 0, 0};
 extern int pm_netdev_open(struct net_device *pnetdev,u8 bnormal);
 static int rtw_suspend(struct usb_interface *intf, pm_message_t message);
 static int rtw_resume(struct usb_interface *intf);
+int rtw_resume_process(_adapter *padapter);
 
 
 static int rtw_drv_init(struct usb_interface *pusb_intf,const struct usb_device_id *pdid);
@@ -281,6 +282,7 @@ static struct usb_device_id rtw_usb_id_tbl[] ={
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x881C),.driver_info = RTL8812},/* Default ID */
 	/*=== Customer ID ===*/
 	{USB_DEVICE(0x050D, 0x1106),.driver_info = RTL8812}, /* Belkin - sercomm */
+	{USB_DEVICE(0x050D, 0x1109),.driver_info = RTL8812}, /* Belkin F9L1109 - SerComm */
 	{USB_DEVICE(0x2001, 0x330E),.driver_info = RTL8812}, /* D-Link - ALPHA */
 	{USB_DEVICE(0x7392, 0xA822),.driver_info = RTL8812}, /* Edimax - Edimax */
 	{USB_DEVICE(0x0DF6, 0x0074),.driver_info = RTL8812}, /* Sitecom - Edimax */
@@ -297,6 +299,11 @@ static struct usb_device_id rtw_usb_id_tbl[] ={
 	{USB_DEVICE(0x07B8, 0x8812),.driver_info = RTL8812}, /* Abocom - Abocom */
 	{USB_DEVICE(0x2001, 0x3315),.driver_info = RTL8812}, /* D-Link - Cameo */
 	{USB_DEVICE(0x2001, 0x3316),.driver_info = RTL8812}, /* D-Link - Cameo */
+	{USB_DEVICE(0x20F4, 0x805B),.driver_info = RTL8812}, /* TRENDnet - Cameo */
+	{USB_DEVICE(0x2357, 0x0101),.driver_info = RTL8812}, /* TP-Link - T4U */
+	{USB_DEVICE(0x13B1, 0x003F),.driver_info = RTL8812}, /* Linksys WUSB6300 */
+	{USB_DEVICE(0x148F, 0x9097),.driver_info = RTL8812}, /* Amped Wireless ACA1 */
+	{USB_DEVICE(0x0411, 0x025D),.driver_info = RTL8821}, /* BUFFALO WI-U3-866D */
 #endif
 
 #ifdef CONFIG_RTL8821A
@@ -307,8 +314,11 @@ static struct usb_device_id rtw_usb_id_tbl[] ={
 	{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDER_ID_REALTEK, 0x0820,0xff,0xff,0xff),.driver_info = RTL8821}, /* 8821AU */
 	/*=== Customer ID ===*/
 	{USB_DEVICE(0x7392, 0xA811),.driver_info = RTL8821}, /* Edimax - Edimax */
+	{USB_DEVICE(0x7392, 0xA812),.driver_info = RTL8821}, /* Edimax - Edimax */
 	{USB_DEVICE(0x04BB, 0x0953),.driver_info = RTL8821}, /* I-O DATA - Edimax */
 	{USB_DEVICE(0x2001, 0x3314),.driver_info = RTL8821}, /* D-Link - Cameo */
+	{USB_DEVICE(0x0846, 0x9052),.driver_info = RTL8821}, /* Netgear - A6100 */
+	{USB_DEVICE(0x0411, 0x0242),.driver_info = RTL8821}, /* BUFFALO - Edimax */
 	{USB_DEVICE(0x2001, 0x3318),.driver_info = RTL8821}, /* D-Link - Cameo */
 	{USB_DEVICE(0x0E66, 0x0023),.driver_info = RTL8821}, /* HAWKING - Edimax */
 #endif
@@ -959,7 +969,10 @@ int rtw_hw_resume(_adapter *padapter)
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	rtw_netif_wake_queue(pnetdev);
+	if(!rtw_netif_queue_stopped(pnetdev))
+      		rtw_netif_start_queue(pnetdev);
+	else
+		rtw_netif_wake_queue(pnetdev);
 
 	pwrpriv->bkeepfwalive = _FALSE;
 	pwrpriv->brfoffbyhw = _FALSE;
@@ -979,24 +992,10 @@ error_exit:
 
 static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 {
-	struct dvobj_priv *dvobj;
-	struct pwrctrl_priv *pwrpriv;
-	struct debug_priv *pdbgpriv;
-	PADAPTER padapter;
 	int ret = 0;
-
-
-	dvobj = usb_get_intfdata(pusb_intf);
-	pwrpriv = dvobj_to_pwrctl(dvobj);
-	pdbgpriv = &dvobj->drv_dbg;
-	padapter = dvobj->if1;
-
-	if (pwrpriv->bInSuspend == _TRUE) {
-		DBG_871X("%s bInSuspend = %d\n", __FUNCTION__, pwrpriv->bInSuspend);
-		pdbgpriv->dbg_suspend_error_cnt++;
-		goto exit;
-	}
-
+	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
+	_adapter *padapter = dvobj->if1;
+	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	if((padapter->bup) || (padapter->bDriverStopped == _FALSE)||(padapter->bSurpriseRemoved == _FALSE))
 	{
 #ifdef CONFIG_AUTOSUSPEND
@@ -1014,10 +1013,8 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 		}
 #endif//CONFIG_AUTOSUSPEND
 	}
-
 	ret =  rtw_suspend_common(padapter);
 
-exit:
 	return ret;
 }
 
@@ -1025,26 +1022,15 @@ int rtw_resume_process(_adapter *padapter)
 {
 	int ret,pm_cnt = 0;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct dvobj_priv *pdvobj = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &pdvobj->drv_dbg;
-
-
-	if (pwrpriv->bInSuspend == _FALSE)
-	{
-		pdbgpriv->dbg_resume_error_cnt++;
-		DBG_871X("%s bInSuspend = %d\n", __FUNCTION__, pwrpriv->bInSuspend);
-		return -1;
-	}
-
-#if defined(CONFIG_BT_COEXIST) && defined(CONFIG_AUTOSUSPEND) //add by amy for 8723as-vau
-#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,32))
+	
+	#if defined(CONFIG_BT_COEXIST) && defined(CONFIG_AUTOSUSPEND) //add by amy for 8723as-vau
+	#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,32))
 	DBG_871X("%s...pm_usage_cnt(%d)  pwrpriv->bAutoResume=%x.  ....\n",__func__,atomic_read(&(adapter_to_dvobj(padapter)->pusbintf->pm_usage_cnt)),pwrpriv->bAutoResume);
 	pm_cnt=atomic_read(&(adapter_to_dvobj(padapter)->pusbintf->pm_usage_cnt));
-#else // kernel < 2.6.32
+	#else
 	DBG_871X("...pm_usage_cnt(%d).....\n", adapter_to_dvobj(padapter)->pusbintf->pm_usage_cnt);
 	pm_cnt = adapter_to_dvobj(padapter)->pusbintf->pm_usage_cnt;
-#endif // kernel < 2.6.32
-
+	#endif
 	DBG_871X("pwrpriv->bAutoResume (%x)\n",pwrpriv->bAutoResume );
 	if( _TRUE == pwrpriv->bAutoResume ){
 		pwrpriv->bInternalAutoSuspend = _FALSE;
@@ -1052,7 +1038,7 @@ int rtw_resume_process(_adapter *padapter)
 		DBG_871X("pwrpriv->bAutoResume (%x)  pwrpriv->bInternalAutoSuspend(%x)\n",pwrpriv->bAutoResume,pwrpriv->bInternalAutoSuspend );
 
 	}
-#endif //#ifdef CONFIG_BT_COEXIST &CONFIG_AUTOSUSPEND&
+	#endif //#ifdef CONFIG_BT_COEXIST &CONFIG_AUTOSUSPEND&
 
 #if defined (CONFIG_WOWLAN) || defined (CONFIG_AP_WOWLAN)
 	/*
@@ -1100,59 +1086,33 @@ int rtw_resume_process(_adapter *padapter)
 
 static int rtw_resume(struct usb_interface *pusb_intf)
 {
-	struct dvobj_priv *dvobj;
-	struct pwrctrl_priv *pwrpriv;
-	struct debug_priv *pdbgpriv;
-	PADAPTER padapter;
-	struct mlme_ext_priv *pmlmeext;
-	int ret = 0;
+	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
+	_adapter *padapter = dvobj->if1;
+	struct net_device *pnetdev = padapter->pnetdev;
+	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(dvobj);
+	 int ret = 0;
 
-
-	dvobj = usb_get_intfdata(pusb_intf);
-	pwrpriv = dvobj_to_pwrctl(dvobj);
-	pdbgpriv = &dvobj->drv_dbg;
-	padapter = dvobj->if1;
-	pmlmeext = &padapter->mlmeextpriv;
-
-	DBG_871X("==> %s (%s:%d)\n", __FUNCTION__, current->comm, current->pid);
-	pdbgpriv->dbg_resume_cnt++;
-
-	if(pwrpriv->bInternalAutoSuspend)
-	{
+	if(pwrpriv->bInternalAutoSuspend ){
  		ret = rtw_resume_process(padapter);
-	}
-	else
-	{
-		if(pwrpriv->wowlan_mode || pwrpriv->wowlan_ap_mode)
-		{
-			rtw_resume_lock_suspend();			
-			ret = rtw_resume_process(padapter);
-			rtw_resume_unlock_suspend();
-		}
-		else
-		{
+	} else {
 #ifdef CONFIG_RESUME_IN_WORKQUEUE
-			rtw_resume_in_workqueue(pwrpriv);
-#else			
-			if (rtw_is_earlysuspend_registered(pwrpriv))
-			{
-				/* jeff: bypass resume here, do in late_resume */
-				rtw_set_do_late_resume(pwrpriv, _TRUE);
-			}	
-			else
-			{
-				rtw_resume_lock_suspend();			
-				ret = rtw_resume_process(padapter);
-				rtw_resume_unlock_suspend();
-			}
-#endif
+		rtw_resume_in_workqueue(pwrpriv);
+#else
+		if (rtw_is_earlysuspend_registered(pwrpriv)
+			#ifdef CONFIG_WOWLAN
+			&& !pwrpriv->wowlan_mode
+			#endif /* CONFIG_WOWLAN */
+		) {
+			/* jeff: bypass resume here, do in late_resume */
+			rtw_set_do_late_resume(pwrpriv, _TRUE);
+		} else {
+			ret = rtw_resume_process(padapter);
 		}
+#endif /* CONFIG_RESUME_IN_WORKQUEUE */
 	}
-
-	pmlmeext->last_scan_time = rtw_get_current_time();
-	DBG_871X("<========  %s return %d\n", __FUNCTION__, ret);
 
 	return ret;
+
 }
 
 

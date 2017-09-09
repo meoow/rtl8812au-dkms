@@ -382,7 +382,7 @@ struct mp_priv
 	u32 rx_pktcount_filter_out;
 	u32 rx_crcerrpktcount;
 	u32 rx_pktloss;
-	BOOLEAN  rx_bindicatePkt;
+
 	struct recv_stat rxstat;
 
 	//RF/BB relative
@@ -474,6 +474,14 @@ typedef struct _MP_FIRMWARE {
 	u8			szFwBuffer[0x8000];
 #endif
 	u32 		ulFwLength;
+
+#ifdef CONFIG_EMBEDDED_FWIMG
+	u8* 		szBTFwBuffer;
+	u8			myBTFwBuffer[0x8000];
+#else
+	u8			szBTFwBuffer[0x8000];
+#endif
+	u32 		ulBTFwLength;
 } RT_MP_FIRMWARE, *PRT_MP_FIRMWARE;
 
 
@@ -563,63 +571,27 @@ typedef enum _MPT_RATE_INDEX
 	MPT_RATE_MCS13,
 	MPT_RATE_MCS14,
 	MPT_RATE_MCS15,	/* 27 */
-	MPT_RATE_MCS16,
-	MPT_RATE_MCS17, // #29
-	MPT_RATE_MCS18,
-	MPT_RATE_MCS19,
-	MPT_RATE_MCS20,
-	MPT_RATE_MCS21,
-	MPT_RATE_MCS22, // #34
-	MPT_RATE_MCS23,
-	MPT_RATE_MCS24,
-	MPT_RATE_MCS25,
-	MPT_RATE_MCS26,
-	MPT_RATE_MCS27, // #39
-	MPT_RATE_MCS28, // #40
-	MPT_RATE_MCS29, // #41
-	MPT_RATE_MCS30, // #42
-	MPT_RATE_MCS31, // #43
 	/* VHT rate. Total: 20*/
-	MPT_RATE_VHT1SS_MCS0,//  #44
-	MPT_RATE_VHT1SS_MCS1, // #
+	MPT_RATE_VHT1SS_MCS0 = 100,// To reserve MCS16~MCS31, the index starts from #100.
+	MPT_RATE_VHT1SS_MCS1, // #101
 	MPT_RATE_VHT1SS_MCS2,
 	MPT_RATE_VHT1SS_MCS3,
 	MPT_RATE_VHT1SS_MCS4,
 	MPT_RATE_VHT1SS_MCS5,
-	MPT_RATE_VHT1SS_MCS6, // #
+	MPT_RATE_VHT1SS_MCS6, // #106
 	MPT_RATE_VHT1SS_MCS7,
 	MPT_RATE_VHT1SS_MCS8,
-	MPT_RATE_VHT1SS_MCS9, //#53
-	MPT_RATE_VHT2SS_MCS0, //#54
-	MPT_RATE_VHT2SS_MCS1, 
+	MPT_RATE_VHT1SS_MCS9,
+	MPT_RATE_VHT2SS_MCS0,
+	MPT_RATE_VHT2SS_MCS1, // #111
 	MPT_RATE_VHT2SS_MCS2,
 	MPT_RATE_VHT2SS_MCS3,
 	MPT_RATE_VHT2SS_MCS4,
 	MPT_RATE_VHT2SS_MCS5,
-	MPT_RATE_VHT2SS_MCS6,
+	MPT_RATE_VHT2SS_MCS6, // #116
 	MPT_RATE_VHT2SS_MCS7,
 	MPT_RATE_VHT2SS_MCS8,
-	MPT_RATE_VHT2SS_MCS9, //#63
-	MPT_RATE_VHT3SS_MCS0,
-	MPT_RATE_VHT3SS_MCS1, 
-	MPT_RATE_VHT3SS_MCS2,
-	MPT_RATE_VHT3SS_MCS3,
-	MPT_RATE_VHT3SS_MCS4,
-	MPT_RATE_VHT3SS_MCS5,
-	MPT_RATE_VHT3SS_MCS6, // #126
-	MPT_RATE_VHT3SS_MCS7,
-	MPT_RATE_VHT3SS_MCS8,
-	MPT_RATE_VHT3SS_MCS9,
-	MPT_RATE_VHT4SS_MCS0,
-	MPT_RATE_VHT4SS_MCS1, // #131
-	MPT_RATE_VHT4SS_MCS2,
-	MPT_RATE_VHT4SS_MCS3,
-	MPT_RATE_VHT4SS_MCS4,
-	MPT_RATE_VHT4SS_MCS5,
-	MPT_RATE_VHT4SS_MCS6, // #136
-	MPT_RATE_VHT4SS_MCS7,
-	MPT_RATE_VHT4SS_MCS8,
-	MPT_RATE_VHT4SS_MCS9,
+	MPT_RATE_VHT2SS_MCS9,
 	MPT_RATE_LAST
 }MPT_RATE_E, *PMPT_RATE_E;
 
@@ -711,9 +683,6 @@ typedef enum	_MPT_TXPWR_DEF{
 	#define 	RF_GAIN_OFFSET_MASK 	0xfffff
 #elif defined(CONFIG_RTL8723B)
 	#define 	REG_RF_BB_GAIN_OFFSET	0x7f
-	#define 	RF_GAIN_OFFSET_MASK 	0xfffff
-#elif defined(CONFIG_RTL8188E)
-	#define 	REG_RF_BB_GAIN_OFFSET	0x55
 	#define 	RF_GAIN_OFFSET_MASK 	0xfffff
 #else
 	#define 	REG_RF_BB_GAIN_OFFSET	0x55
@@ -817,12 +786,11 @@ extern u8 Hal_ReadRFThermalMeter(PADAPTER pAdapter);
 extern void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart);
 extern void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart);
 extern void Hal_ProSetCrystalCap (PADAPTER pAdapter , u32 CrystalCapVal);
-//extern void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv);
+extern void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv);
 extern void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter ,BOOLEAN bMain);
 extern ULONG mpt_ProQueryCalTxPower(PADAPTER	pAdapter,u8 RfPath);
 extern void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart);
 extern u8 MptToMgntRate(u32	MptRateIdx);
-extern u8 rtw_mpRateParseFunc(PADAPTER pAdapter, u8 *targetStr);
 
 #endif //_RTW_MP_H_
 

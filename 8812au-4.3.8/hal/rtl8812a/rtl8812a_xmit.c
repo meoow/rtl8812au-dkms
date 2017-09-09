@@ -284,8 +284,7 @@ void rtl8812a_fill_fake_txdesc(
 	u8*			pDesc,
 	u32			BufferLen,
 	u8			IsPsPoll,
-	u8			IsBTQosNull,
-	u8			bDataFrame)
+	u8			IsBTQosNull)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 
@@ -325,36 +324,7 @@ void rtl8812a_fill_fake_txdesc(
 
 	SET_TX_DESC_USE_RATE_8812(pDesc, 1);
 	SET_TX_DESC_OWN_8812(pDesc, 1);
-
-	//
-	// Encrypt the data frame if under security mode excepct null data. Suggested by CCW.
-	//
-	if (_TRUE ==bDataFrame)
-	{
-		u32 EncAlg;
-
-		EncAlg = padapter->securitypriv.dot11PrivacyAlgrthm;
-		switch (EncAlg)
-		{
-			case _NO_PRIVACY_:
-				SET_TX_DESC_SEC_TYPE_8812(pDesc, 0x0); 
-				break;
-			case _WEP40_:
-			case _WEP104_:
-			case _TKIP_:
-				SET_TX_DESC_SEC_TYPE_8812(pDesc, 0x1); 
-				break;
-			case _SMS4_:
-				SET_TX_DESC_SEC_TYPE_8812(pDesc, 0x2); 
-				break;
-			case _AES_:
-				SET_TX_DESC_SEC_TYPE_8812(pDesc, 0x3);
-				break;
-			default:
-				SET_TX_DESC_SEC_TYPE_8812(pDesc, 0x0); 
-				break;	 
-		}
-	}
+	
 	SET_TX_DESC_TX_RATE_8812(pDesc, MRateToHwRate(pmlmeext->tx_rate));
 
 #if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)

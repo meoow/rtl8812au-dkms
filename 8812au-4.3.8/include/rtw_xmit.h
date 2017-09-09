@@ -77,14 +77,9 @@
 
 // xmit extension buff defination
 #define MAX_XMIT_EXTBUF_SZ	(1536)
-
-#ifdef CONFIG_SINGLE_XMIT_BUF
-#define NR_XMIT_EXTBUFF	(1)
-#else
 #define NR_XMIT_EXTBUFF	(32)
-#endif
 
-#define MAX_CMDBUF_SZ	(5120)	//(4096)
+#define MAX_CMDBUF_SZ	(4096)
 
 #define MAX_NUMBLKS		(1)
 
@@ -266,13 +261,12 @@ union txdesc {
 #define PCI_MAX_TX_QUEUE_COUNT	8
 
 struct rtw_tx_ring {
-	unsigned char	qid;
 	struct tx_desc	*desc;
-	dma_addr_t	dma;
-	unsigned int	idx;
-	unsigned int	entries;
-	_queue		queue;
-	u32		qlen;
+	dma_addr_t		dma;
+	unsigned int		idx;
+	unsigned int		entries;
+	_queue			queue;
+	u32				qlen;
 };
 #endif
 
@@ -532,10 +526,6 @@ struct xmit_buf
 #endif
 #endif
 
-#ifdef CONFIG_PCI_HCI
-	struct tx_desc *desc;
-#endif
-
 #if defined(DBG_XMIT_BUF )|| defined(DBG_XMIT_BUF_EXT)
 	u8 no;
 #endif
@@ -632,12 +622,6 @@ struct agg_pkt_info{
 	u16 pkt_len;
 };
 
-enum cmdbuf_type {
-	CMDBUF_BEACON = 0x00,
-	CMDBUF_RSVD,
-	CMDBUF_MAX
-};
-
 struct	xmit_priv	{
 
 	_lock	lock;
@@ -725,7 +709,7 @@ struct	xmit_priv	{
 #endif
 #endif
 
-#if defined (CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+#ifdef CONFIG_SDIO_HCI
 #ifdef CONFIG_SDIO_TX_TASKLET
 	#ifdef PLATFORM_LINUX
 	struct tasklet_struct xmit_tasklet;
@@ -748,7 +732,7 @@ struct	xmit_priv	{
 	u8 *pxmit_extbuf;
 	uint free_xmit_extbuf_cnt;
 
-	struct xmit_buf	pcmd_xmitbuf[CMDBUF_MAX];
+	struct xmit_buf	pcmd_xmitbuf;
 
 	u16	nqos_ssn;
 	#ifdef CONFIG_TX_EARLY_MODE
@@ -771,10 +755,9 @@ struct	xmit_priv	{
 	_lock lock_sctx;
 };
 
-extern struct xmit_frame *__rtw_alloc_cmdxmitframe(struct xmit_priv *pxmitpriv,
-		enum cmdbuf_type buf_type);
-#define rtw_alloc_cmdxmitframe(p) __rtw_alloc_cmdxmitframe(p, CMDBUF_RSVD)
-#define rtw_alloc_bcnxmitframe(p) __rtw_alloc_cmdxmitframe(p, CMDBUF_BEACON)
+extern struct xmit_frame *rtw_alloc_cmdxmitframe(struct xmit_priv *pxmitpriv);
+extern struct xmit_buf *rtw_alloc_cmd_xmitbuf(struct xmit_priv *pxmitpriv);
+extern s32	rtw_free_cmd_xmitbuf(struct xmit_priv *pxmitpriv);
 
 extern struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv);
 extern s32 rtw_free_xmitbuf_ext(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
@@ -828,7 +811,7 @@ void rtw_free_hwxmits(_adapter *padapter);
 
 
 s32 rtw_xmit(_adapter *padapter, _pkt **pkt);
-bool xmitframe_hiq_filter(struct xmit_frame *xmitframe);
+
 #if defined(CONFIG_AP_MODE) || defined(CONFIG_TDLS)
 sint xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *pxmitframe);
 void stop_sta_xmit(_adapter *padapter, struct sta_info *psta);

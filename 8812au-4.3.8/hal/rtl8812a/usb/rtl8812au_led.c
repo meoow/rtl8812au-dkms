@@ -290,7 +290,6 @@ SwLedOn_8821AU(
 					LedCfg = rtw_read8(Adapter, REG_LEDCFG2) & 0x20;
 					rtw_write8(Adapter, REG_LEDCFG2, (LedCfg & ~(BIT3))|BIT5); // SW control led0 on.
 					RT_TRACE(_module_rtl8712_led_c_,_drv_info_,("8821 SwLedOn LED2 0x%x\n", rtw_read32(Adapter, REG_LEDCFG0)));
-					//DBG_871X("8821 SwLedOn LED2 0x%x\n", rtw_read32(Adapter, REG_LEDCFG0));
 				}
 
 				break;
@@ -378,7 +377,6 @@ SwLedOff_8821AU(
 					LedCfg = rtw_read8(Adapter, REG_LEDCFG2);
 					LedCfg &= 0x20; // Set to software control.
 					rtw_write8(Adapter, REG_LEDCFG2, (LedCfg|BIT3|BIT5));
-					//DBG_871X("8821 SwLedOn LED2 0x%x\n", rtw_read32(Adapter, REG_LEDCFG0));
 					RT_TRACE(_module_rtl8712_led_c_,_drv_info_,("8821  SwLedOff LED2 0x%x\n", rtw_read32(Adapter, REG_LEDCFG0)));
 				 }
 

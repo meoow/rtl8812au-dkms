@@ -275,7 +275,6 @@ void rtl8812_query_rx_phy_status(
 
 	//_enter_critical_bh(&pHalData->odm_stainfo_lock, &irqL);	
 	ODM_PhyStatusQuery(&pHalData->odmpriv,pPHYInfo,pphy_status,&(pkt_info));
-	if(psta) psta->rssi = pattrib->phy_info.RecvSignalPower;
 	//_exit_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
 
 	precvframe->u.hdr.psta = NULL;

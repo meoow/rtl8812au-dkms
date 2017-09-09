@@ -20,7 +20,6 @@
 #define _RTW_PWRCTRL_C_
 
 #include <drv_types.h>
-#include <hal_data.h>
 
 
 int rtw_fw_ps_state(PADAPTER padapter)
@@ -159,9 +158,6 @@ int ips_leave(_adapter * padapter)
 	}
 #endif //DBG_CHECK_FW_PS_STATE
 	_exit_pwrlock(&pwrpriv->lock);
-
-	if (_SUCCESS == ret)
-		ODM_DMReset(&GET_HAL_DATA(padapter)->odmpriv);
 
 #ifdef CONFIG_BT_COEXIST
 	if (_SUCCESS == ret)
@@ -608,7 +604,7 @@ _func_enter_;
 
 		// polling cpwm
 		do {
-			rtw_msleep_os(1);
+			rtw_mdelay_os(1);
 			poll_cnt++;
 			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
 			if ((cpwm_orig ^ cpwm_now) & 0x80)
@@ -1120,7 +1116,7 @@ _func_enter_;
 		)
 	{ //connect
 
-		if(pwrpriv->pwr_mode == PS_MODE_ACTIVE) {
+		if(pwrpriv->power_mgnt == PS_MODE_ACTIVE) {
 			DBG_871X("%s: Driver Already Leave LPS\n",__FUNCTION__);
 			return;
 		}
@@ -1205,7 +1201,7 @@ _func_enter_;
 			else
 			#endif
 			{
-#if defined(CONFIG_FWLPS_IN_IPS) || defined(CONFIG_SWLPS_IN_IPS) || defined(CONFIG_RTL8188E)
+#if defined(CONFIG_FWLPS_IN_IPS) || defined(CONFIG_SWLPS_IN_IPS) || (defined(CONFIG_PLATFORM_SPRD) && defined(CONFIG_RTL8188E))
 				#ifdef CONFIG_IPS
 				if(_FALSE == ips_leave(pri_padapter))
 				{
@@ -1213,8 +1209,8 @@ _func_enter_;
 				}
 				#endif
 #endif //CONFIG_SWLPS_IN_IPS || (CONFIG_PLATFORM_SPRD && CONFIG_RTL8188E)
-			}
-		}
+			}				
+		}	
 	}
 
 _func_exit_;
@@ -2150,9 +2146,6 @@ _func_enter_;
 
 	rtw_init_timer(&pwrctrlpriv->pwr_state_check_timer, padapter, pwr_state_check_handler);
 
-	pwrctrlpriv->wowlan_mode = _FALSE;
-	pwrctrlpriv->wowlan_ap_mode = _FALSE;
-
 	#ifdef CONFIG_RESUME_IN_WORKQUEUE
 	_init_workitem(&pwrctrlpriv->resume_work, resume_workitem_callback, NULL);
 	pwrctrlpriv->rtw_workqueue = create_singlethread_workqueue("rtw_workqueue");
@@ -2163,9 +2156,6 @@ _func_enter_;
 	rtw_register_early_suspend(pwrctrlpriv);
 	#endif //CONFIG_HAS_EARLYSUSPEND || CONFIG_ANDROID_POWER
 
-#ifdef CONFIG_WOWLAN
-	pwrctrlpriv->wowlan_from_cmd = _FALSE;
-#endif
 #ifdef CONFIG_PNO_SUPPORT
 	pwrctrlpriv->pno_inited = _FALSE;
 	pwrctrlpriv->pnlo_info = NULL;
@@ -2233,16 +2223,12 @@ static void resume_workitem_callback(struct work_struct *work)
 	DBG_871X("%s\n",__FUNCTION__);
 
 	rtw_resume_process(adapter);
-
-	rtw_resume_unlock_suspend();
 }
 
 void rtw_resume_in_workqueue(struct pwrctrl_priv *pwrpriv)
 {
 	// accquire system's suspend lock preventing from falliing asleep while resume in workqueue
-	//rtw_lock_suspend();
-
-	rtw_resume_lock_suspend();
+	rtw_lock_suspend();
 	
 	#if 1
 	queue_work(pwrpriv->rtw_workqueue, &pwrpriv->resume_work);	
@@ -2452,6 +2438,7 @@ int _rtw_pwr_wakeup(_adapter *padapter, u32 ips_deffer_ms, const char *caller)
 
 	//System suspend is not allowed to wakeup
 	if((pwrpriv->bInternalAutoSuspend == _FALSE) && (_TRUE == pwrpriv->bInSuspend )){
+		pwrpriv->bInSuspend = _FALSE;
 		ret = _FAIL;
 		goto exit;
 	}

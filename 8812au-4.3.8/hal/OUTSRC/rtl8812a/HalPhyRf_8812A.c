@@ -18,8 +18,7 @@
  *
  ******************************************************************************/
 
-#include "Mp_Precomp.h"
-#include "../phydm_precomp.h"
+#include "../odm_precomp.h"
 
 
 
@@ -49,8 +48,34 @@ void DoIQK_8812A(
 
 	ODM_ResetIQKResult(pDM_Odm);		
 
+#if(DM_ODM_SUPPORT_TYPE  & ODM_WIN)
+#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)	
+#if USE_WORKITEM
+	PlatformAcquireMutex(&pHalData->mxChnlBwControl);
+#else
+	PlatformAcquireSpinLock(Adapter, RT_CHANNEL_AND_BANDWIDTH_SPINLOCK);
+#endif
+#elif((DEV_BUS_TYPE == RT_USB_INTERFACE) || (DEV_BUS_TYPE == RT_SDIO_INTERFACE))
+	PlatformAcquireMutex(&pHalData->mxChnlBwControl);
+#endif
+#endif			
+
+
 	pDM_Odm->RFCalibrateInfo.ThermalValue_IQK= ThermalValue;
 	PHY_IQCalibrate_8812A(Adapter, FALSE);
+
+    
+#if(DM_ODM_SUPPORT_TYPE  & ODM_WIN)
+#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)	
+#if USE_WORKITEM
+	PlatformReleaseMutex(&pHalData->mxChnlBwControl);
+#else
+	PlatformReleaseSpinLock(Adapter, RT_CHANNEL_AND_BANDWIDTH_SPINLOCK);
+#endif
+#elif((DEV_BUS_TYPE == RT_USB_INTERFACE) || (DEV_BUS_TYPE == RT_SDIO_INTERFACE))
+	PlatformReleaseMutex(&pHalData->mxChnlBwControl);
+#endif
+#endif
 }
 
 /*-----------------------------------------------------------------------------
@@ -89,7 +114,8 @@ ODM_TxPwrTrackSetPwr8812A(
 	u1Byte			Final_CCK_Swing_Index = 0; 
 	u1Byte			i = 0;
 
-	if (pDM_Odm->mp_mode == TRUE)
+#if (MP_DRIVER==1)
+	if ( *(pDM_Odm->mp_mode) == 1)
 	{
 #if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE ))
 	#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN))
@@ -101,6 +127,7 @@ ODM_TxPwrTrackSetPwr8812A(
 #endif
 	}
 	else
+#endif
 	{
 		u2Byte	rate	 = *(pDM_Odm->pForcedDataRate);
 	
@@ -379,6 +406,43 @@ void ConfigureTxpowerTrack_8812A(
 }
 
 
+//
+// 2011/07/26 MH Add an API for testing IQK fail case.
+//
+// MP Already declare in odm.c 
+#if !(DM_ODM_SUPPORT_TYPE & ODM_WIN) 
+BOOLEAN
+ODM_CheckPowerStatus(
+	IN	PADAPTER		Adapter)
+{
+/*
+	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
+	PDM_ODM_T			pDM_Odm = &pHalData->DM_OutSrc;
+	RT_RF_POWER_STATE 	rtState;
+	PMGNT_INFO			pMgntInfo	= &(Adapter->MgntInfo);
+
+	// 2011/07/27 MH We are not testing ready~~!! We may fail to get correct value when init sequence.
+	if (pMgntInfo->init_adpt_in_progress == TRUE)
+	{
+		ODM_RT_TRACE(pDM_Odm,COMP_INIT, DBG_LOUD, ("ODM_CheckPowerStatus Return TRUE, due to initadapter"));
+		return	TRUE;
+	}
+	
+	//
+	//	2011/07/19 MH We can not execute tx pwoer tracking/ LLC calibrate or IQK.
+	//
+	Adapter->HalFunc.GetHwRegHandler(Adapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));	
+	if(Adapter->bDriverStopped || Adapter->bDriverIsGoingToPnpSetPowerSleep || rtState == eRfOff)
+	{
+		ODM_RT_TRACE(pDM_Odm,COMP_INIT, DBG_LOUD, ("ODM_CheckPowerStatus Return FALSE, due to %d/%d/%d\n", 
+		Adapter->bDriverStopped, Adapter->bDriverIsGoingToPnpSetPowerSleep, rtState));
+		return	FALSE;
+	}
+*/
+	return	TRUE;
+}
+#endif
+
 #define BW_20M 	0
 #define	BW_40M  1
 #define	BW_80M	2
@@ -394,7 +458,7 @@ void _IQK_RX_FillIQC_8812A(
 	case ODM_RF_PATH_A:
 		{
 			ODM_SetBBReg(pDM_Odm, 0x82c, BIT(31), 0x0); // [31] = 0 --> Page C
-			if (RX_X>>1 >=0x112 || (RX_Y>>1 >= 0x12 && RX_Y>>1 <= 0x3ee)){
+			if (RX_X>>1 ==0x112 || RX_Y>>1 == 0x3ee){
 				ODM_SetBBReg(pDM_Odm, 0xc10, 0x000003ff, 0x100);
 				ODM_SetBBReg(pDM_Odm, 0xc10, 0x03ff0000, 0);
 				ODM_RT_TRACE(pDM_Odm,ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("RX_X = %x;;RX_Y = %x ====>fill to IQC\n", RX_X>>1&0x000003ff, RX_Y>>1&0x000003ff));
@@ -410,7 +474,7 @@ void _IQK_RX_FillIQC_8812A(
 	case ODM_RF_PATH_B:
 		{	
 			ODM_SetBBReg(pDM_Odm, 0x82c, BIT(31), 0x0); // [31] = 0 --> Page C	
-			if (RX_X>>1 >=0x112 || (RX_Y>>1 >= 0x12 && RX_Y>>1 <= 0x3ee)){
+			if (RX_X>>1 ==0x112 || RX_Y>>1 == 0x3ee){
 				ODM_SetBBReg(pDM_Odm, 0xe10, 0x000003ff, 0x100);
 				ODM_SetBBReg(pDM_Odm, 0xe10, 0x03ff0000, 0);
 				ODM_RT_TRACE(pDM_Odm,ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("RX_X = %x;;RX_Y = %x ====>fill to IQC\n", RX_X>>1&0x000003ff, RX_Y>>1&0x000003ff));
@@ -485,6 +549,7 @@ void _IQK_BackupMacBB_8812A(
 	
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("BackupMacBB Success!!!!\n"));
 }
+
 void _IQK_BackupRF_8812A(
 	IN PDM_ODM_T	pDM_Odm,
 	IN pu4Byte		RFA_backup,
@@ -503,6 +568,7 @@ void _IQK_BackupRF_8812A(
     	}
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("BackupRF Success!!!!\n"));
 }
+
 void _IQK_BackupAFE_8812A(
 	IN PDM_ODM_T		pDM_Odm,
 	IN pu4Byte		AFE_backup,
@@ -518,6 +584,7 @@ void _IQK_BackupAFE_8812A(
     	}
     	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("BackupAFE Success!!!!\n"));
 }
+
 void _IQK_RestoreMacBB_8812A(
 	IN PDM_ODM_T		pDM_Odm,
 	IN pu4Byte		MACBB_backup,
@@ -533,6 +600,7 @@ void _IQK_RestoreMacBB_8812A(
     	}
     	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("RestoreMacBB Success!!!!\n"));
 }
+
 void _IQK_RestoreRF_8812A(
 	IN PDM_ODM_T			pDM_Odm,
 	IN ODM_RF_RADIO_PATH_E 	Path,
@@ -564,6 +632,7 @@ void _IQK_RestoreRF_8812A(
 		break;
 	}
 }
+
 void _IQK_RestoreAFE_8812A(
 	IN PDM_ODM_T		pDM_Odm,
 	IN pu4Byte		AFE_backup,
@@ -601,7 +670,6 @@ void _IQK_RestoreAFE_8812A(
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("RestoreAFE Success!!!!\n"));
 }
 
-
 void _IQK_ConfigureMAC_8812A(
 	IN PDM_ODM_T		pDM_Odm
 	)
@@ -612,7 +680,6 @@ void _IQK_ConfigureMAC_8812A(
 	ODM_SetBBReg(pDM_Odm, 0x550, BIT(11)|BIT(3), 0x0);
 	ODM_Write1Byte(pDM_Odm, 0x808, 0x00);		//		RX ante off
 	ODM_SetBBReg(pDM_Odm, 0x838, 0xf, 0xc);		//		CCA off
-	ODM_Write1Byte(pDM_Odm, 0xa07, 0xf);		//  		CCK RX Path off
 }
 
 #define cal_num 10
@@ -673,6 +740,7 @@ void _IQK_Tx_8812A(
 	ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, 0x65, bRFRegOffsetMask, 0x931d5);
 	ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, 0x8f, bRFRegOffsetMask, 0x8a001);
 	ODM_Write4Byte(pDM_Odm, 0x90c, 0x00008000);
+	ODM_Write4Byte(pDM_Odm, 0xb00, 0x03000100);
 	ODM_SetBBReg(pDM_Odm, 0xc94, BIT(0), 0x1);
 	ODM_SetBBReg(pDM_Odm, 0xe94, BIT(0), 0x1);
 	ODM_Write4Byte(pDM_Odm, 0x978, 0x29002000);// TX (X,Y)
@@ -681,7 +749,7 @@ void _IQK_Tx_8812A(
 	ODM_SetBBReg(pDM_Odm, 0x82c, BIT(31), 0x1); // [31] = 1 --> Page C1
 
 	if (pDM_Odm->ExtPA5G){
-		if (pDM_Odm->RFEType == 1){
+		if (pDM_Odm->SupportInterface == 1 && pDM_Odm->RFEType == 1){
 			ODM_Write4Byte(pDM_Odm, 0xc88, 0x821403e3);
 			ODM_Write4Byte(pDM_Odm, 0xe88, 0x821403e3);
 		}
@@ -727,7 +795,7 @@ void _IQK_Tx_8812A(
 			ODM_Write4Byte(pDM_Odm, 0x980, 0xfa000000);
 			ODM_Write4Byte(pDM_Odm, 0x980, 0xf8000000);
 			
-			ODM_delay_ms(10); //Delay 10ms
+			ODM_delay_ms(10); //Delay 25ms
 			ODM_Write4Byte(pDM_Odm, 0xcb8, 0x00000000);
 			ODM_Write4Byte(pDM_Odm, 0xeb8, 0x00000000);
 			delay_count = 0;
@@ -887,24 +955,15 @@ void _IQK_Tx_8812A(
 		ODM_SetBBReg(pDM_Odm, 0x978, BIT(31), 0x1);
 		ODM_SetBBReg(pDM_Odm, 0x97c, BIT(31), 0x0);
 		ODM_Write4Byte(pDM_Odm, 0x90c, 0x00008000);
-                if (pDM_Odm->SupportInterface == ODM_ITRF_PCIE)
+                if (pDM_Odm->SupportInterface == 1 && pDM_Odm->RFEType == 1)
 		     ODM_Write4Byte(pDM_Odm, 0x984, 0x0046a911);
                 else
                      ODM_Write4Byte(pDM_Odm, 0x984, 0x0046a890);
 		//ODM_Write4Byte(pDM_Odm, 0x984, 0x0046a890);
-		if (pDM_Odm->RFEType == 1){
 		ODM_Write4Byte(pDM_Odm, 0xcb0, 0x77777717);
 		ODM_Write4Byte(pDM_Odm, 0xcb4, 0x00000077);
 		ODM_Write4Byte(pDM_Odm, 0xeb0, 0x77777717);
 		ODM_Write4Byte(pDM_Odm, 0xeb4, 0x00000077);
-		}
-		else{
-			ODM_Write4Byte(pDM_Odm, 0xcb0, 0x77777717);
-			ODM_Write4Byte(pDM_Odm, 0xcb4, 0x02000077);
-			ODM_Write4Byte(pDM_Odm, 0xeb0, 0x77777717);
-			ODM_Write4Byte(pDM_Odm, 0xeb4, 0x02000077);
-		}
-		
 		
 		ODM_SetBBReg(pDM_Odm, 0x82c, BIT(31), 0x1); // [31] = 1 --> Page C1
 		if (TX0_finish){
@@ -926,7 +985,7 @@ void _IQK_Tx_8812A(
 			ODM_SetBBReg(pDM_Odm, 0x978, 0x03FF8000, (TX_IQC[0])&0x000007ff);
 			ODM_SetBBReg(pDM_Odm, 0x978, 0x000007FF, (TX_IQC[1])&0x000007ff);
 			ODM_SetBBReg(pDM_Odm, 0x82c, BIT(31), 0x1); // [31] = 1 --> Page C1
-			if (pDM_Odm->RFEType == 1){
+			if (pDM_Odm->SupportInterface == 1 && pDM_Odm->RFEType == 1){
 				ODM_Write4Byte(pDM_Odm, 0xc8c, 0x28161500);
 			}
 			else{
@@ -943,8 +1002,8 @@ void _IQK_Tx_8812A(
 			ODM_SetBBReg(pDM_Odm, 0x978, 0x03FF8000, (TX_IQC[2])&0x000007ff);
 			ODM_SetBBReg(pDM_Odm, 0x978, 0x000007FF, (TX_IQC[3])&0x000007ff);
 			ODM_SetBBReg(pDM_Odm, 0x82c, BIT(31), 0x1); // [31] = 1 --> Page C1
-			if (pDM_Odm->RFEType == 1){
-				ODM_Write4Byte(pDM_Odm, 0xe8c, 0x28161500);
+			if (pDM_Odm->SupportInterface == 1 && pDM_Odm->RFEType == 1){
+				ODM_Write4Byte(pDM_Odm, 0xe8c, 0x28161900);
 			}
 			else{
 				ODM_Write4Byte(pDM_Odm, 0xe8c, 0x28160ca0);
@@ -1096,7 +1155,7 @@ void _IQK_Tx_8812A(
 
 
 
-	if (RX0_finish){
+	if (RX0_finish == 1){
 		_IQK_RX_FillIQC_8812A(pDM_Odm, ODM_RF_PATH_A, RX_IQC[0], RX_IQC[1]);
 	}
 	else{
@@ -1114,7 +1173,7 @@ void _IQK_Tx_8812A(
 
 
 
-	if (RX1_finish){
+	if (RX1_finish == 1){
 		_IQK_RX_FillIQC_8812A(pDM_Odm, ODM_RF_PATH_B, RX_IQC[2], RX_IQC[3]);
 	}
 	else{
@@ -1125,7 +1184,7 @@ void _IQK_Tx_8812A(
 		
 }
 
-#define MACBB_REG_NUM 9
+#define MACBB_REG_NUM 10
 #define AFE_REG_NUM 12
 #define RF_REG_NUM 3
 
@@ -1137,7 +1196,7 @@ phy_IQCalibrate_8812A(
 	)
 {
 	u4Byte	MACBB_backup[MACBB_REG_NUM], AFE_backup[AFE_REG_NUM], RFA_backup[RF_REG_NUM], RFB_backup[RF_REG_NUM];
-	u4Byte 	Backup_MACBB_REG[MACBB_REG_NUM] = {0x520, 0x550, 0x808, 0xa04, 0x90c, 0xc00, 0xe00, 0x838,  0x82c}; 
+	u4Byte 	Backup_MACBB_REG[MACBB_REG_NUM] = {0xb00, 0x520, 0x550, 0x808, 0x90c, 0xc00, 0xe00, 0x838,  0x82c}; 
 	u4Byte 	Backup_AFE_REG[AFE_REG_NUM] = {0xc5c, 0xc60, 0xc64, 0xc68, 0xcb0, 0xcb4,
 		       	                                                   0xe5c, 0xe60, 0xe64, 0xe68, 0xeb0, 0xeb4}; 
 	u4Byte	Reg_C1B8, Reg_E1B8;
@@ -1366,11 +1425,11 @@ PHY_IQCalibrate_8812A(
 	#endif	
 #endif//(MP_DRIVER == 1)
 
-//#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE) )
-	//if (ODM_CheckPowerStatus(pAdapter) == FALSE)
-		//return;
-//#endif
-	pDM_Odm->IQKFWOffload = 0;
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE) )
+	if (ODM_CheckPowerStatus(pAdapter) == FALSE)
+		return;
+#endif
+
 	StartTime = ODM_GetCurrentTime( pDM_Odm);
 
 #if MP_DRIVER == 1	
@@ -1378,7 +1437,7 @@ PHY_IQCalibrate_8812A(
 #endif		
 	{
 
-		if(pDM_Odm->IQKFWOffload)
+		if(pHalData->RegIQKFWOffload)
 		{
 			phy_IQCalibrate_By_FW_8812A(pAdapter);
 		}

@@ -98,8 +98,6 @@
 //	General definitions
 //============================================================================
 
-#define MACID_NUM_8723A 32
-#define CAM_ENTRY_NUM_8723A 32
 
-#endif /* __RTL8723A_SPEC_H__ */
+#endif
 

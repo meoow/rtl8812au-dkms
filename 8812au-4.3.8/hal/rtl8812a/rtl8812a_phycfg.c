@@ -1282,56 +1282,9 @@ void phy_SetBBSwingByBand_8812A(
 	}
 }
 
-
-VOID
-phy_SetRFEReg8821(
-	IN PADAPTER 	Adapter,
-	IN u1Byte		Band
-)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-
-	if(Band == BAND_ON_2_4G)
-	{
-		// Turn off RF PA and LNA
-		PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF000, 0x7);	// 0xCB0[15:12] = 0x7 (LNA_On)
-		PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF0, 0x7); 	// 0xCB0[7:4] = 0x7 (PAPE_A)			
-		
-		if (pHalData->ExternalLNA_2G) { 
-			// <20131223, VincentL> Turn on 2.4G External LNA (Asked by Luke Lee & Alex Wang)
-			PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT20, 1); 			// 0xCB4 = 0x10100077;
-			PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT22, 0); 			// 0xCB4 = 0x10100077;
-			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT2|BIT1|BIT0, 0x2);	// 0xCB0[2:0] = b'010 
-			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT10|BIT9|BIT8, 0x2);	// 0xCB0[10:8] = b'010
-
-		}else{
-			// <20131223, VincentL> Bypass 2.4G External LNA (Asked by Luke Lee & Alex Wang)
-			PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT20, 0); 			// 0xCB4 = 0x10000077;
-			PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT22, 0); 			// 0xCB4 = 0x10000077;
-			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT2|BIT1|BIT0, 0x7);	// 0xCB0[2:0] = b'111 
-			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT10|BIT9|BIT8, 0x7);	// 0xCB0[10:8] = b'111
-		}
-	}
-	else
-	{
-		// Turn ON RF PA and LNA
-		PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF000, 0x5);	// 0xCB0[15:12] = 0x5 (LNA_On)
-		PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF0, 0x4); 	// 0xCB0[7:4] = 0x4 (PAPE_A)			
-		
-		// <20131223, VincentL> Bypass 2.4G External LNA (Asked by Luke Lee & Alex Wang)
-		PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT20, 0); 			// 0xCB4 = 0x10000077;
-		PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT22, 0); 			// 0xCB4 = 0x10000077;
-		PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT2|BIT1|BIT0, 0x7);	// 0xCB0[2:0] = b'111 
-		PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT10|BIT9|BIT8, 0x7);	// 0xCB0[10:8] = b'111
-		
-	}
-}
-
-
-
 s32
 PHY_SwitchWirelessBand8812(
-	IN PADAPTER 	Adapter,
+	IN PADAPTER		Adapter,
 	IN u8			Band
 )
 {
@@ -1345,17 +1298,28 @@ PHY_SwitchWirelessBand8812(
 	if(Band == BAND_ON_2_4G)
 	{// 2.4G band
 
-		PHY_SetBBReg(Adapter, rOFDMCCKEN_Jaguar, bOFDMEN_Jaguar|bCCKEN_Jaguar, 0x03);
-		
+		// STOP Tx/Rx
+		PHY_SetBBReg(Adapter, rOFDMCCKEN_Jaguar, bOFDMEN_Jaguar|bCCKEN_Jaguar, 0x00);
+
 		if (IS_HARDWARE_TYPE_8821(Adapter)) 
-			phy_SetRFEReg8821(Adapter, Band);
+		{
+			// Turn off RF PA and LNA
+			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF000, 0x7); 	// 0xCB0[15:12] = 0x7 (LNA_On)
+			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF0, 0x7); 	// 0xCB0[7:4] = 0x7 (PAPE_A)
+
+			if (pHalData->ExternalLNA_2G) { 
+				// <20130717, Kordan> Turn on 2.4G External LNA. (Asked by Alvin)
+				PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT20, 1); 
+				PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT22, 0);
+				PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT2|BIT1|BIT0, 0x2); // 0xCB0[2:0] = b'010 
+				PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT10|BIT9|BIT8, 0x2); // 0xCB0[10:8] = b'010				
+			} 
+		}
 
 		if(IS_HARDWARE_TYPE_8812(Adapter))
 		{
-			// <20131128, VincentL> Remove 0x830[3:1] setting when switching 2G/5G, requested by Yn.
-			PHY_SetBBReg(Adapter,rBWIndication_Jaguar,0x3,0x1); 		// 0x834[1:0] = 0x1
-			//BB Yn user guide R27
-			PHY_SetBBReg(Adapter,rPwed_TH_Jaguar, BIT13|BIT14|BIT15|BIT16|BIT17, 0x17);		//0x830[17:13]=5'b10111
+			PHY_SetBBReg(Adapter,rPwed_TH_Jaguar, 0xE, 0x4);		 	// 0x830[3:1] = 0x4 
+			PHY_SetBBReg(Adapter,rBWIndication_Jaguar,0x3,0x1);			// 0x834[1:0] = 0x1
 		}
 
 		// AGC table select 
@@ -1365,27 +1329,60 @@ PHY_SwitchWirelessBand8812(
 			PHY_SetBBReg(Adapter, rAGC_table_Jaguar, 0x3, 0);			// 0x82C[1:0] = 2b'00
 
 		if(IS_HARDWARE_TYPE_8812(Adapter))
-			phy_SetRFEReg8812(Adapter, Band);
-			
-		// <20131106, Kordan> Workaround to fix CCK FA for scan issue.
-		//if( pHalData->bMPMode == FALSE)
-		if(Adapter->registrypriv.mp_mode==0)
 		{
-			PHY_SetBBReg(Adapter, rTxPath_Jaguar, 0xf0, 0x1);
-			PHY_SetBBReg(Adapter, rCCK_RX_Jaguar, 0x0f000000, 0x1);
+			if(GetRegbENRFEType(Adapter))
+				phy_SetRFEReg8812(Adapter, Band);
+			else
+			{
+				// PAPE_A (bypass RFE module in 2G)
+				PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0x000000F0, 0x7);
+				PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, 0x000000F0, 0x7);	
+				
+				// PAPE_G (bypass RFE module in 5G)
+				if (pHalData->ExternalPA_2G) {
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0x0000000F, 0x0);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, 0x0000000F, 0x0);
+				} else {
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0x0000000F, 0x7);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, 0x0000000F, 0x7);				
+				}
+
+				// TRSW bypass RFE moudle in 2G
+				if (pHalData->ExternalLNA_2G) {
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, bMaskByte2, 0x54);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, bMaskByte2, 0x54);
+				} else {
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, bMaskByte2, 0x77);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, bMaskByte2, 0x77);
+				}
+			}
 		}
 
 		update_tx_basic_rate(Adapter, WIRELESS_11BG);
+
+		// cck_enable
+		PHY_SetBBReg(Adapter, rOFDMCCKEN_Jaguar, bOFDMEN_Jaguar|bCCKEN_Jaguar, 0x3);
 
 		// CCK_CHECK_en
 		rtw_write8(Adapter, REG_CCK_CHECK_8812, 0x0);
 	}
 	else	//5G band
 	{
-		u16 count = 0, reg41A = 0;
+		u16	count = 0, reg41A = 0;
 
 		if (IS_HARDWARE_TYPE_8821(Adapter)) 
-			phy_SetRFEReg8821(Adapter, Band);
+		{
+			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF000, 0x5); 	// 0xCB0[15:12] = 0x5 (LNA_On)
+			PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0xF0, 0x4); 	// 0xCB0[7:4] = 0x4 (PAPE_A)
+
+			if (pHalData->ExternalLNA_2G) { 
+				// <20130717, Kordan> Bypass the 2.4G External LNA. (Asked by Alvin)
+				PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT20, 0); 
+				PHY_SetBBReg(Adapter, rA_RFE_Inv_Jaguar, BIT22, 0); 
+				PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT2|BIT1|BIT0, 0x7); // 0xCB0[2:0] = b'111 
+				PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, BIT10|BIT9|BIT8, 0x7); // 0xCB0[10:8] = b'111
+			} 
+		}
 
 		// CCK_CHECK_en
 		rtw_write8(Adapter, REG_CCK_CHECK_8812, 0x80);
@@ -1407,49 +1404,63 @@ PHY_SwitchWirelessBand8812(
 		if(count != 0)
 			DBG_871X("PHY_SwitchWirelessBand8812(): Switch to 5G Band. Count = %d reg41A=0x%x\n", count, reg41A);
 
-		// 2012/02/01, Sinda add registry to switch workaround without long-run verification for scan issue.
-		if(Adapter->registrypriv.mp_mode==0)
-			PHY_SetBBReg(Adapter, rOFDMCCKEN_Jaguar, bOFDMEN_Jaguar|bCCKEN_Jaguar, 0x03);
-		
+		// STOP Tx/Rx
+		PHY_SetBBReg(Adapter, rOFDMCCKEN_Jaguar, bOFDMEN_Jaguar|bCCKEN_Jaguar, 0x00);
+
 		if(IS_HARDWARE_TYPE_8812(Adapter))
 		{
-			// <20131128, VincentL> Remove 0x830[3:1] setting when switching 2G/5G, requested by Yn.
-			PHY_SetBBReg(Adapter,rBWIndication_Jaguar,0x3,0x2); // 0x834[1:0] = 0x2
-			//BB Yn user guide R27
-			PHY_SetBBReg(Adapter,rPwed_TH_Jaguar, BIT13|BIT14|BIT15|BIT16|BIT17, 0x15);		//0x830[17:13]=5'b10101
+			PHY_SetBBReg(Adapter,rPwed_TH_Jaguar, 0xE, 0x3);		// 0x830[3:1] = 0x3
+			PHY_SetBBReg(Adapter,rBWIndication_Jaguar,0x3,0x2);	// 0x834[1:0] = 0x2
 		}
 
 		// AGC table select 
 		if (IS_VENDOR_8821A_MP_CHIP(Adapter))
-			PHY_SetBBReg(Adapter, rA_TxScale_Jaguar, 0xF00, 1); 	// 0xC1C[11:8] = 1
+			PHY_SetBBReg(Adapter, rA_TxScale_Jaguar, 0xF00, 1);		// 0xC1C[11:8] = 1
 		else		
 			PHY_SetBBReg(Adapter, rAGC_table_Jaguar, 0x3, 1);		// 0x82C[1:0] = 2'b00
 
 		if(IS_HARDWARE_TYPE_8812(Adapter))
-			phy_SetRFEReg8812(Adapter, Band);
+		{
+			if(GetRegbENRFEType(Adapter))
+				phy_SetRFEReg8812(Adapter, Band);
+			else
+			{
+				// PAPE_A (bypass RFE module in 2G)
+				if (pHalData->ExternalPA_5G) { 
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0x000000F0, 0x1);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, 0x000000F0, 0x1);
+				} else {
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0x000000F0, 0x0);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, 0x000000F0, 0x0);
+				}
+				
+				// PAPE_G (bypass RFE module in 5G)
+				PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, 0x0000000F, 0x7);
+				PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, 0x0000000F, 0x7);
 
-		// <20131106, Kordan> Workaround to fix CCK FA for scan issue.
-		//if( pHalData->bMPMode == FALSE)
-		if(Adapter->registrypriv.mp_mode==0)
-		{
-			PHY_SetBBReg(Adapter, rTxPath_Jaguar, 0xf0, 0x0);
-			PHY_SetBBReg(Adapter, rCCK_RX_Jaguar, 0x0f000000, 0xF);
+				// TRSW bypass RFE moudle in 2G
+				if (pHalData->ExternalLNA_5G) {
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, bMaskByte2, 0x54);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, bMaskByte2, 0x54);
+				} else {
+					PHY_SetBBReg(Adapter, rA_RFE_Pinmux_Jaguar, bMaskByte2, 0x77);
+					PHY_SetBBReg(Adapter, rB_RFE_Pinmux_Jaguar, bMaskByte2, 0x77);
+				}
+			}
 		}
-		else
-		{
-			// cck_enable
-			PHY_SetBBReg(Adapter, rOFDMCCKEN_Jaguar, bOFDMEN_Jaguar|bCCKEN_Jaguar, 0x02);
-		}
-		
+
 		//avoid using cck rate in 5G band
 		// Set RRSR rate table.
 		update_tx_basic_rate(Adapter, WIRELESS_11A);
 
+		// cck_enable
+		PHY_SetBBReg(Adapter, rOFDMCCKEN_Jaguar, bOFDMEN_Jaguar|bCCKEN_Jaguar, 0x2);
 
 		//DBG_871X("==>PHY_SwitchWirelessBand8812() BAND_ON_5G settings OFDM index 0x%x\n", pHalData->OFDM_index[RF_PATH_A]);
-		}
+	}
 
 	phy_SetBBSwingByBand_8812A(Adapter, Band, currentBand);
+
 	//DBG_871X("<==PHY_SwitchWirelessBand8812():Switch Band OK.\n");
 	return _SUCCESS;	
 }
@@ -1912,7 +1923,7 @@ phy_SwChnlAndSetBwMode8812(
 )
 {
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T			pDM_Odm = &pHalData->odmpriv;	
+
 	//DBG_871X("phy_SwChnlAndSetBwMode8812(): bSwChnl %d, bSetChnlBW %d \n", pHalData->bSwChnl, pHalData->bSetChnlBW);
 	if ( Adapter->bNotifyChannelChange )
 	{
@@ -1962,7 +1973,7 @@ phy_SwChnlAndSetBwMode8812(
 		else if(IS_HARDWARE_TYPE_8821(Adapter))
 		{
 #if (RTL8821A_SUPPORT == 1)
-			PHY_IQCalibrate_8821A(pDM_Odm, _FALSE);
+			PHY_IQCalibrate_8821A(Adapter, _FALSE);
 #endif
 		}	
 		pHalData->bNeedIQK = _FALSE;

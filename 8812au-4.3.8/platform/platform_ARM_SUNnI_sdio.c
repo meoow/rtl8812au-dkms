@@ -69,15 +69,13 @@ int platform_wifi_power_on(void)
 	} else {
 		sdc_id = val.val;
 		DBG_871X("----- %s sdc_id: %d, mod_sel: %d\n", __FUNCTION__, sdc_id, mod_sel);
-
+		wifi_pm_power(1);
+		mdelay(10);
 #if defined(CONFIG_PLATFORM_ARM_SUN6I) || defined(CONFIG_PLATFORM_ARM_SUN7I)
 		sw_mci_rescan_card(sdc_id, 1);
 #elif defined(CONFIG_PLATFORM_ARM_SUN8I)
 		sunxi_mci_rescan_card(sdc_id, 1);
 #endif
-		mdelay(100);
-		wifi_pm_power(1);
-
 		DBG_871X("%s: power up, rescan card.\n", __FUNCTION__);
 	}
 
@@ -107,14 +105,12 @@ int platform_wifi_power_on(void)
 void platform_wifi_power_off(void)
 {
 #ifdef CONFIG_MMC
+	wifi_pm_power(0);
 #if defined(CONFIG_PLATFORM_ARM_SUN6I) ||defined(CONFIG_PLATFORM_ARM_SUN7I)
 	sw_mci_rescan_card(sdc_id, 0);
 #elif defined(CONFIG_PLATFORM_ARM_SUN8I)
 	sunxi_mci_rescan_card(sdc_id, 0);
 #endif
-	mdelay(100);
-	wifi_pm_power(0);
-
 	DBG_871X("%s: remove card, power off.\n", __FUNCTION__);
 #endif // CONFIG_MMC
 }

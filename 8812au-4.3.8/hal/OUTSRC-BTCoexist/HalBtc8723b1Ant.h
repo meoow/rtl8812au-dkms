@@ -17,8 +17,6 @@
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8723B_1ANT		2
 
-#define  BT_8723B_1ANT_WIFI_NOISY_THRESH								30   //max: 255
-
 typedef enum _BT_INFO_SRC_8723B_1ANT{
 	BT_INFO_SRC_8723B_1ANT_WIFI_FW			= 0x0,
 	BT_INFO_SRC_8723B_1ANT_BT_RSP				= 0x1,
@@ -62,9 +60,6 @@ typedef enum _BT_8723B_1ANT_COEX_ALGO{
 }BT_8723B_1ANT_COEX_ALGO,*PBT_8723B_1ANT_COEX_ALGO;
 
 typedef struct _COEX_DM_8723B_1ANT{
-	// hw setting
-	u1Byte		preAntPosType;
-	u1Byte		curAntPosType;
 	// fw mechanism
 	BOOLEAN		bCurIgnoreWlanAct;
 	BOOLEAN		bPreIgnoreWlanAct;
@@ -125,7 +120,6 @@ typedef struct _COEX_STA_8723B_1ANT{
 	BOOLEAN					bA2dpExist;
 	BOOLEAN					bHidExist;
 	BOOLEAN					bPanExist;
-	BOOLEAN					bBtHiPriLinkExist;
 
 	BOOLEAN					bUnderLps;
 	BOOLEAN					bUnderIps;
@@ -134,37 +128,18 @@ typedef struct _COEX_STA_8723B_1ANT{
 	u4Byte					highPriorityRx;
 	u4Byte					lowPriorityTx;
 	u4Byte					lowPriorityRx;
-	s1Byte					btRssi;
+	u1Byte					btRssi;
 	BOOLEAN					bBtTxRxMask;
 	u1Byte					preBtRssiState;
 	u1Byte					preWifiRssiState[4];
 	BOOLEAN					bC2hBtInfoReqSent;
 	u1Byte					btInfoC2h[BT_INFO_SRC_8723B_1ANT_MAX][10];
 	u4Byte					btInfoC2hCnt[BT_INFO_SRC_8723B_1ANT_MAX];
-	BOOLEAN					bBtWhckTest;
 	BOOLEAN					bC2hBtInquiryPage;
 	BOOLEAN					bC2hBtPage;				//Add for win8.1 page out issue
 	BOOLEAN					bWiFiIsHighPriTask;		//Add for win8.1 page out issue
 	u1Byte					btRetryCnt;
 	u1Byte					btInfoExt;
-	u4Byte					popEventCnt;
-	u1Byte					nScanAPNum;
-
-	u4Byte					nCRCOK_CCK;
-	u4Byte					nCRCOK_11g;
-	u4Byte					nCRCOK_11n;
-	u4Byte					nCRCOK_11nAgg;
-	
-	u4Byte					nCRCErr_CCK;
-	u4Byte					nCRCErr_11g;
-	u4Byte					nCRCErr_11n;
-	u4Byte					nCRCErr_11nAgg;	
-
-	BOOLEAN					bCCKLock;
-	BOOLEAN					bPreCCKLock;
-	u1Byte					nCoexTableType;
-
-	BOOLEAN					bForceLpsOn;
 }COEX_STA_8723B_1ANT, *PCOEX_STA_8723B_1ANT;
 
 //===========================================
@@ -172,10 +147,6 @@ typedef struct _COEX_STA_8723B_1ANT{
 //===========================================
 VOID
 EXhalbtc8723b1ant_PowerOnSetting(
-	IN	PBTC_COEXIST		pBtCoexist
-	);
-VOID
-EXhalbtc8723b1ant_PreLoadFirmware(
 	IN	PBTC_COEXIST		pBtCoexist
 	);
 VOID

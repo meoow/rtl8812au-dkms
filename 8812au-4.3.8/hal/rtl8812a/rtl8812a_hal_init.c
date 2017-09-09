@@ -873,15 +873,11 @@ void _8051Reset8812(PADAPTER padapter)
 	// Reset MCU IO Wrapper- sugggest by SD1-Gimmy
 	if(IS_HARDWARE_TYPE_8812(padapter))
 	{
-		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL);
-		rtw_write8(padapter, REG_RSV_CTRL, u1bTmp2&(~BIT1));
 		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL+1);
-		rtw_write8(padapter, REG_RSV_CTRL+1, u1bTmp2&(~BIT3));
+		rtw_write8(padapter, REG_RSV_CTRL+1, u1bTmp2&(~BIT3));	
 	}
 	else if(IS_HARDWARE_TYPE_8821(padapter))
 	{
-		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL);
-		rtw_write8(padapter, REG_RSV_CTRL, u1bTmp2&(~BIT1));
 		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL+1);
 		rtw_write8(padapter, REG_RSV_CTRL+1, u1bTmp2&(~BIT0));
 	}
@@ -892,15 +888,11 @@ void _8051Reset8812(PADAPTER padapter)
 	// Enable MCU IO Wrapper
 	if(IS_HARDWARE_TYPE_8812(padapter))
 	{
-		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL);
-		rtw_write8(padapter, REG_RSV_CTRL, u1bTmp2&(~BIT1));
 		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL+1);
-		rtw_write8(padapter, REG_RSV_CTRL+1, u1bTmp2 |(BIT3));
+		rtw_write8(padapter, REG_RSV_CTRL+1, u1bTmp2 |(BIT3));	
 	}
 	else if(IS_HARDWARE_TYPE_8821(padapter))
 	{
-		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL);
-		rtw_write8(padapter, REG_RSV_CTRL, u1bTmp2&(~BIT1));
 		u1bTmp2 = rtw_read8(padapter, REG_RSV_CTRL+1);
 		rtw_write8(padapter, REG_RSV_CTRL+1, u1bTmp2|(BIT0));
 	}
@@ -910,6 +902,7 @@ void _8051Reset8812(PADAPTER padapter)
 	DBG_871X("=====> _8051Reset8812(): 8051 reset success .\n");
 }
 
+extern u8 g_fwdl_chksum_fail;
 static s32 polling_fwdl_chksum(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
 	s32 ret = _FAIL;
@@ -930,8 +923,11 @@ static s32 polling_fwdl_chksum(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 		goto exit;
 	}
 
-	if (rtw_fwdl_test_trigger_chksum_fail())
+	if (g_fwdl_chksum_fail) {
+		DBG_871X("%s: fwdl test case: fwdl_chksum_fail\n", __FUNCTION__);
+		g_fwdl_chksum_fail--;
 		goto exit;
+	}
 
 	ret = _SUCCESS;
 
@@ -942,6 +938,7 @@ exit:
 	return ret;
 }
 
+extern u8 g_fwdl_wintint_rdy_fail;
 static s32 _FWFreeToGo8812(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
 	s32 ret = _FAIL;
@@ -969,8 +966,11 @@ static s32 _FWFreeToGo8812(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 		goto exit;
 	}
 
-	if (rtw_fwdl_test_trigger_wintint_rdy_fail())
+	if (g_fwdl_wintint_rdy_fail) {
+		DBG_871X("%s: fwdl test case: wintint_rdy_fail\n", __FUNCTION__);
+		g_fwdl_wintint_rdy_fail--;
 		goto exit;
+	}
 
 	ret = _SUCCESS;
 
@@ -1290,12 +1290,6 @@ int _WriteBTFWtoTxPktBuf8812(
 #else
 	TotalPktLen = FwBufLen+pHalData->HWDescHeadLength;
 #endif
-	if((TotalPktLen+TXDESC_OFFSET) > MAX_CMDBUF_SZ)
-	{
-		DBG_871X(" WARNING %s => Total packet len = %d over MAX_CMDBUF_SZ:%d \n"
-			,__FUNCTION__,(TotalPktLen+TXDESC_OFFSET),MAX_CMDBUF_SZ);
-		return _FAIL;
-	}
 	pGenBufReservedPagePacket = rtw_zmalloc(TotalPktLen);//GetGenTempBuffer (Adapter, TotalPktLen);
 	if (!pGenBufReservedPagePacket)
 		return _FAIL;
@@ -1397,9 +1391,9 @@ int _WriteBTFWtoTxPktBuf8812(
 		/*---------------------------------------------------------
 		tx reserved_page_packet
 		----------------------------------------------------------*/
-			if ((pmgntframe = rtw_alloc_cmdxmitframe(pxmitpriv)) == NULL) {
-					rtStatus = _FAIL;
-					goto exit;
+			if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL) {
+						rtStatus = _FAIL;
+						goto exit;
 			}
 			//update attribute
 			pattrib = &pmgntframe->attrib;
@@ -1411,14 +1405,10 @@ int _WriteBTFWtoTxPktBuf8812(
 			//_rtw_memset(pmgntframe->buf_addr, 0, TotalPktLen+txdesc_size);
 			//pmgntframe->buf_addr = ReservedPagePacket ;
 
-			_rtw_memcpy( (u8*) (pmgntframe->buf_addr + txdesc_offset), ReservedPagePacket, FwBufLen);
-			DBG_871X("[%d]===>TotalPktLen + TXDESC_OFFSET TotalPacketLen:%d \n", DLBcnCount, (FwBufLen + txdesc_offset));
+		_rtw_memcpy( (u8*) (pmgntframe->buf_addr + txdesc_offset), ReservedPagePacket, FwBufLen);
+		DBG_871X("[%d]===>TotalPktLen + TXDESC_OFFSET TotalPacketLen:%d \n", DLBcnCount, (FwBufLen + txdesc_offset));
 
-#ifdef CONFIG_PCI_HCI
 			dump_mgntframe(Adapter, pmgntframe);
-#else
-			dump_mgntframe_and_wait(Adapter, pmgntframe, 100);
-#endif
 
 #endif
 #if 1
@@ -1479,15 +1469,7 @@ int ReservedPage_Compare(PADAPTER Adapter,PRT_MP_FIRMWARE pFirmware,u32 BTPatchS
 {
 	u8 temp,ret,lastBTsz;
 	u32 u1bTmp=0,address_start=0,count=0,i=0;
-	u8	*myBTFwBuffer = NULL;
-
-	myBTFwBuffer = rtw_zmalloc(BTPatchSize);
-	if (myBTFwBuffer == NULL)
-	{
-		DBG_871X("%s can't be executed due to the failed malloc.\n", __FUNCTION__);
-		Adapter->mppriv.bTxBufCkFail=_TRUE;
-		return _FALSE;
-	}	
+	u8	myBTFwBuffer[0x8000];
 	
 	temp=rtw_read8(Adapter,0x209);
 	
@@ -1517,14 +1499,14 @@ int ReservedPage_Compare(PADAPTER Adapter,PRT_MP_FIRMWARE pFirmware,u32 BTPatchS
 			rtw_msleep_os(10); // 10ms
 		}while(!(u1bTmp&BIT(23)) && count < 50);
 		
-			myBTFwBuffer[i*8+0]=rtw_read8(Adapter, 0x144);
-			myBTFwBuffer[i*8+1]=rtw_read8(Adapter, 0x145);
-			myBTFwBuffer[i*8+2]=rtw_read8(Adapter, 0x146); 
-			myBTFwBuffer[i*8+3]=rtw_read8(Adapter, 0x147);
-			myBTFwBuffer[i*8+4]=rtw_read8(Adapter, 0x148);
-			myBTFwBuffer[i*8+5]=rtw_read8(Adapter, 0x149);
-			myBTFwBuffer[i*8+6]=rtw_read8(Adapter, 0x14a);
-			myBTFwBuffer[i*8+7]=rtw_read8(Adapter, 0x14b);
+			pFirmware->myBTFwBuffer[i*8+0]=rtw_read8(Adapter, 0x144);
+			pFirmware->myBTFwBuffer[i*8+1]=rtw_read8(Adapter, 0x145);
+			pFirmware->myBTFwBuffer[i*8+2]=rtw_read8(Adapter, 0x146); 
+			pFirmware->myBTFwBuffer[i*8+3]=rtw_read8(Adapter, 0x147);
+			pFirmware->myBTFwBuffer[i*8+4]=rtw_read8(Adapter, 0x148);
+			pFirmware->myBTFwBuffer[i*8+5]=rtw_read8(Adapter, 0x149);
+			pFirmware->myBTFwBuffer[i*8+6]=rtw_read8(Adapter, 0x14a);
+			pFirmware->myBTFwBuffer[i*8+7]=rtw_read8(Adapter, 0x14b);
 	}
 	
 	rtw_write32(Adapter,0x140,address_start+5+BTPatchSize/8) ;			  
@@ -1548,25 +1530,20 @@ int ReservedPage_Compare(PADAPTER Adapter,PRT_MP_FIRMWARE pFirmware,u32 BTPatchS
 
 	for(i=0;i<lastBTsz;i++)
 	{
-		myBTFwBuffer[(BTPatchSize/8)*8+i] = rtw_read8(Adapter, (0x144+i));
+		pFirmware->myBTFwBuffer[(BTPatchSize/8)*8+i] = rtw_read8(Adapter, (0x144+i));
 
 	}
 
 	for(i=0;i<BTPatchSize;i++)
 	{
-		if(myBTFwBuffer[i]!= pFirmware->szFwBuffer[i])
+		if(pFirmware->myBTFwBuffer[i]!= pFirmware->szBTFwBuffer[i])
 		{
-			DBG_871X(" In direct myBTFwBuffer[%d]=%x , pFirmware->szFwBuffer=%x\n",i, myBTFwBuffer[i],pFirmware->szFwBuffer[i]);
+			DBG_871X(" In direct pFirmware->myBTFwBuffer[%d]=%x , pFirmware->szBTFwBuffer=%x\n",i, pFirmware->myBTFwBuffer[i],pFirmware->szBTFwBuffer[i]);
 			Adapter->mppriv.bTxBufCkFail=_TRUE;
 			break;
 		}
 	}
 
-	if (myBTFwBuffer != NULL)
-	{
-		rtw_mfree(myBTFwBuffer, BTPatchSize);
-	}
-	
 	return _TRUE;
 }
 
@@ -1610,8 +1587,8 @@ s32 FirmwareDownloadBT(PADAPTER padapter, PRT_MP_FIRMWARE pFirmware)
 
 		pBTFirmwareBuf = (u8*)Rtl8821A_BT_MP_Patch_FW;
 		BTFirmwareLen = Rtl8812BFwBTImgArrayLength;
-		pFirmware->szFwBuffer = pBTFirmwareBuf;
-		pFirmware->ulFwLength = BTFirmwareLen;
+		pFirmware->szBTFwBuffer = pBTFirmwareBuf;
+		pFirmware->ulBTFwLength = BTFirmwareLen;
 #endif // CONFIG_EMBEDDED_FWIMG
 	}
 
@@ -2080,12 +2057,6 @@ Hal_EfuseParseBTCoexistInfo8812A(
 			pHalData->EEPROMBluetoothCoexist = _FALSE;
 			pHalData->EEPROMBluetoothAntNum = Ant_x2;
 		}
-
-		#ifdef CONFIG_BTCOEX_FORCE_CSR
-		pHalData->EEPROMBluetoothType = BT_CSR_BC8;
-		pHalData->EEPROMBluetoothCoexist = _TRUE;
-		pHalData->EEPROMBluetoothAntNum = Ant_x2;
-		#endif
 	} else {
 		rtw_warn_on(1);
 	}
@@ -2093,7 +2064,7 @@ Hal_EfuseParseBTCoexistInfo8812A(
 #ifdef CONFIG_BT_COEXIST
 	rtw_btcoex_SetBTCoexist(Adapter, pHalData->EEPROMBluetoothCoexist);
 	rtw_btcoex_SetChipType(Adapter, pHalData->EEPROMBluetoothType);
-	rtw_btcoex_SetPGAntNum(Adapter, pHalData->EEPROMBluetoothAntNum==Ant_x2?2:1);
+	rtw_btcoex_SetPGAntNum(Adapter, pHalData->EEPROMBluetoothAntNum==Ant_x2?2:1, _FALSE);
 #endif /* CONFIG_BT_COEXIST */
 }
 
@@ -2334,10 +2305,7 @@ void Hal_ReadRemoteWakeup_8812A(
 		// decide hw if support remote wakeup function
 		// if hw supported, 8051 (SIE) will generate WeakUP signal( D+/D- toggle) when autoresume
 #ifdef CONFIG_USB_HCI
-		if(IS_HARDWARE_TYPE_8821U(padapter))
-			pwrctl->bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0_8811AU] & BIT1)?_TRUE :_FALSE;
-		else
-			pwrctl->bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT1)?_TRUE :_FALSE;
+		pwrctl->bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0_8811AU] & BIT1)?_TRUE :_FALSE;
 #endif //CONFIG_USB_HCI
 
 		DBG_871X("%s...bSupportRemoteWakeup(%x)\n",__FUNCTION__, pwrctl->bSupportRemoteWakeup);
@@ -2358,6 +2326,8 @@ Hal_ReadChannelPlan8812A(
 		, RT_CHANNEL_DOMAIN_REALTEK_DEFINE
 		, AutoLoadFail
 	);
+
+	Hal_ChannelPlanToRegulation(padapter, padapter->mlmepriv.ChannelPlan);
 
 	DBG_871X("mlmepriv.ChannelPlan = 0x%02x\n", padapter->mlmepriv.ChannelPlan);
 }
@@ -2477,11 +2447,10 @@ hal_ReadPAType_8812A(
 		{
 			pHalData->PAType_2G = EF1Byte( *(u8 *)&PROMContent[EEPROM_PA_TYPE_8812AU] );
 			pHalData->LNAType_2G = EF1Byte( *(u8 *)&PROMContent[EEPROM_LNA_TYPE_2G_8812AU] );
-			if (pHalData->PAType_2G == 0xFF)
+			if (pHalData->PAType_2G == 0xFF && pHalData->LNAType_2G == 0xFF) {
 				pHalData->PAType_2G = 0;
-			if(pHalData->LNAType_2G == 0xFF)
 				pHalData->LNAType_2G = 0;
-			
+			}
 			pHalData->ExternalPA_2G = ((pHalData->PAType_2G & BIT5) && (pHalData->PAType_2G & BIT4)) ? 1 : 0;
 			pHalData->ExternalLNA_2G = ((pHalData->LNAType_2G & BIT7) && (pHalData->LNAType_2G & BIT3)) ? 1 : 0;
 		}
@@ -2595,11 +2564,10 @@ Hal_ReadPAType_8821A(
 		{
 			pHalData->PAType_2G = EF1Byte( *(u8 *)&PROMContent[EEPROM_PA_TYPE_8812AU] );
 			pHalData->LNAType_2G = EF1Byte( *(u8 *)&PROMContent[EEPROM_LNA_TYPE_2G_8812AU] );
-			if(pHalData->PAType_2G == 0xFF )
+			if (pHalData->PAType_2G == 0xFF && pHalData->LNAType_2G == 0xFF) {
 				pHalData->PAType_2G = 0;
-			if(pHalData->LNAType_2G == 0xFF) 
 				pHalData->LNAType_2G = 0;
-			
+			}
 			pHalData->ExternalPA_2G = (pHalData->PAType_2G & BIT4) ? 1 : 0;
 			pHalData->ExternalLNA_2G = (pHalData->LNAType_2G & BIT3) ? 1 : 0;
 		}
@@ -2671,21 +2639,8 @@ Hal_ReadRFEType_8812A(
 
 	if(!AutoloadFail)
 	{
-		if(( GetRegRFEType(Adapter) != 64)|| 0xFF == PROMContent[EEPROM_RFE_OPTION_8812])
-		{	
-			if(GetRegRFEType(Adapter) != 64)
-				pHalData->RFEType = GetRegRFEType(Adapter);
-			else
-			{ 
-				if (IS_HARDWARE_TYPE_8812AU(Adapter))
-					pHalData->RFEType = 0;
-				else if (IS_HARDWARE_TYPE_8812E(Adapter))
-					pHalData->RFEType = 2;
-				else
-					pHalData->RFEType = EEPROM_DEFAULT_RFE_OPTION;
-			}	
-			
-		}
+		if(GetRegRFEType(Adapter) != 64)
+			pHalData->RFEType = GetRegRFEType(Adapter);
 		else if(PROMContent[EEPROM_RFE_OPTION_8812] & BIT7)
 		{
 			if(pHalData->ExternalLNA_5G)
@@ -2725,16 +2680,9 @@ Hal_ReadRFEType_8812A(
 	else
 	{
 		if(GetRegRFEType(Adapter) != 64)
-				pHalData->RFEType = GetRegRFEType(Adapter);
+			pHalData->RFEType = GetRegRFEType(Adapter);
 		else
-		{ 
-				if (IS_HARDWARE_TYPE_8812AU(Adapter))
-					pHalData->RFEType = 0;
-				else if (IS_HARDWARE_TYPE_8812E(Adapter))
-					pHalData->RFEType = 2;
-				else
-					pHalData->RFEType = EEPROM_DEFAULT_RFE_OPTION;
-		}	
+			pHalData->RFEType = EEPROM_DEFAULT_RFE_OPTION;
 	}
 
 	DBG_871X("RFE Type: 0x%2x\n", pHalData->RFEType);
@@ -4264,13 +4212,14 @@ void rtl8812_GetHalODMVar(
 	PADAPTER				Adapter,
 	HAL_ODM_VARIABLE		eVariable,
 	PVOID					pValue1,
-	PVOID					pValue2)
+	BOOLEAN					bSet)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	PDM_ODM_T podmpriv = &pHalData->odmpriv;
 	switch(eVariable){
+		case HAL_ODM_STA_INFO:
+			break;
 		default:
-			GetHalODMVar(Adapter,eVariable,pValue1,pValue2);
 			break;
 	}
 }
@@ -4285,8 +4234,29 @@ void rtl8812_SetHalODMVar(
 	PDM_ODM_T podmpriv = &pHalData->odmpriv;
 	//_irqL irqL;
 	switch(eVariable){
+		case HAL_ODM_STA_INFO:
+			{	
+				struct sta_info *psta = (struct sta_info *)pValue1;				
+				if(bSet){
+					DBG_8192C("### Set STA_(%d) info\n",psta->mac_id);
+					ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS,psta->mac_id,psta);
+				}
+				else{
+					DBG_8192C("### Clean STA_(%d) info\n",psta->mac_id);
+					//_enter_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
+					ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS,psta->mac_id,NULL);
+					
+					//_exit_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
+			            }
+			}
+			break;
+		case HAL_ODM_P2P_STATE:		
+				ODM_CmnInfoUpdate(podmpriv,ODM_CMNINFO_WIFI_DIRECT,bSet);
+			break;
+		case HAL_ODM_WIFI_DISPLAY_STATE:
+				ODM_CmnInfoUpdate(podmpriv,ODM_CMNINFO_WIFI_DISPLAY,bSet);
+			break;
 		default:
-			SetHalODMVar(Adapter,eVariable,pValue1,bSet);
 			break;
 	}
 }	
@@ -4436,9 +4406,6 @@ ReadChipVersion8812A(
 		else
 			ChipVersion.RFType = RF_TYPE_1T1R;//RF_1T1R;
 	}
-
-	if(Adapter->registrypriv.special_rf_path == 1)
-		ChipVersion.RFType = RF_TYPE_1T1R;	//RF_1T1R;
 
 	if (IS_HARDWARE_TYPE_8812(Adapter))
 		ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
@@ -4595,18 +4562,6 @@ void InitDefaultValue8821A(PADAPTER padapter)
 	pHalData->fw_ractrl = _FALSE;		
 	if (!pwrctrlpriv->bkeepfwalive)
 		pHalData->LastHMEBoxNum = 0;	
-
-	/* hal capability values */
-	#ifdef CONFIG_RTL8821A
-	if(IS_HARDWARE_TYPE_8821(padapter)) {
-		pHalData->macid_num = MACID_NUM_8821A;
-		pHalData->cam_entry_num = CAM_ENTRY_NUM_8821A;
-	} else
-	#endif
-	{
-		pHalData->macid_num = MACID_NUM_8812A;
-		pHalData->cam_entry_num = CAM_ENTRY_NUM_8812A;
-	}
 
 	// init dm default value
 	pHalData->bChnlBWInitialized = _FALSE;
@@ -5531,7 +5486,7 @@ static void hw_var_set_macaddr(PADAPTER Adapter, u8 variable, u8* val)
 
 	for(idx = 0 ; idx < 6; idx++)
 	{
-		rtw_write8(GET_PRIMARY_ADAPTER(Adapter), (reg_macid+idx), val[idx]);
+		rtw_write8(Adapter, (reg_macid+idx), val[idx]);
 	}
 	
 }
@@ -6210,6 +6165,16 @@ _func_enter_;
 			}
 			break;
 
+		case HW_VAR_SEC_CFG:
+#ifdef CONFIG_CONCURRENT_MODE
+			// enable tx enc and rx dec engine, and no key search for MC/BC
+			val8 = 0x0c | BIT(5);
+#else
+			val8 = *pval;
+#endif
+			rtw_write8(padapter, REG_SECCFG, val8);
+			break;
+
 		case HW_VAR_CAM_EMPTY_ENTRY:
 			{
 				u8 ucIndex = *pval;
@@ -6394,6 +6359,21 @@ _func_enter_;
 			rtw_write32(padapter, REG_RCR, val32);
 			break;
 #endif // CONFIG_TDLS
+
+		case HW_VAR_INITIAL_GAIN:
+			{
+				pDIG_T pDigTable = &podmpriv->DM_DigTable;
+				u32 rx_gain = *(u32*)pval;
+
+				if (rx_gain == 0xff) {//restore rx gain
+					ODM_Write_DIG(podmpriv, pDigTable->BackupIGValue);
+				} else {
+					pDigTable->BackupIGValue = pDigTable->CurIGValue;
+					ODM_Write_DIG(podmpriv, rx_gain);
+				}
+			}
+			break;
+
 #if defined(CONFIG_BT_COEXIST) && 0
 		case HW_VAR_BT_SET_COEXIST:
 			rtl8812_set_dm_bt_coexist(padapter, *pval);
@@ -6689,153 +6669,12 @@ _func_enter_;
 			SetBeamformingCLK_8812(padapter);
 			break;
 #endif
-
-		case HW_VAR_MACID_SLEEP:
-		{
-			u32 reg_macid_sleep;
-			u8 bit_shift;
-			u8 id = *(u8*)pval;
-			u32 val32;
-
-			if (id < 32) {
-				reg_macid_sleep = REG_MACID_SLEEP;
-				bit_shift = id;
-			} else if (id < 64) {
-				reg_macid_sleep = REG_MACID_SLEEP_1;
-				bit_shift = id-32;
-			} else if (id < 96) {
-				reg_macid_sleep = REG_MACID_SLEEP_2;
-				bit_shift = id-64;
-			} else if (id < 128) {
-				reg_macid_sleep = REG_MACID_SLEEP_3;
-				bit_shift = id-96;
-			} else {
-				rtw_warn_on(1);
-				break;
-			}
-
-			val32 = rtw_read32(padapter, reg_macid_sleep);
-			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_SLEEP] macid=%d, org reg_0x%03x=0x%08X\n",
-				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
-
-			if (val32 & BIT(bit_shift))
-				break;
-
-			val32 |= BIT(bit_shift);
-			rtw_write32(padapter, reg_macid_sleep, val32);
-		}
-			break;
-
-		case HW_VAR_MACID_WAKEUP:
-		{
-			u32 reg_macid_sleep;
-			u8 bit_shift;
-			u8 id = *(u8*)pval;
-			u32 val32;
-
-			if (id < 32) {
-				reg_macid_sleep = REG_MACID_SLEEP;
-				bit_shift = id;
-			} else if (id < 64) {
-				reg_macid_sleep = REG_MACID_SLEEP_1;
-				bit_shift = id-32;
-			} else if (id < 96) {
-				reg_macid_sleep = REG_MACID_SLEEP_2;
-				bit_shift = id-64;
-			} else if (id < 128) {
-				reg_macid_sleep = REG_MACID_SLEEP_3;
-				bit_shift = id-96;
-			} else {
-				rtw_warn_on(1);
-				break;
-			}
-
-			val32 = rtw_read32(padapter, reg_macid_sleep);
-			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_WAKEUP] macid=%d, org reg_0x%03x=0x%08X\n",
-				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
-
-			if (!(val32 & BIT(bit_shift)))
-				break;
-
-			val32 &= ~BIT(bit_shift);
-			rtw_write32(padapter, reg_macid_sleep, val32);
-		}
-			break;
-
 		default:
 			SetHwReg(padapter, variable, pval);
 			break;
 	}
 
 _func_exit_;
-}
-
-struct qinfo_8812a {
-	u32 head:8;
-	u32 pkt_num:7;
-	u32 tail:8;
-	u32 ac:2;
-	u32 macid:7;
-};
-
-struct bcn_qinfo_8812a {
-	u16 head:8;
-	u16 pkt_num:8;
-};
-
-void dump_qinfo_8812a(void *sel, struct qinfo_8812a *info, const char *tag)
-{
-	//if (info->pkt_num)
-	DBG_871X_SEL_NL(sel, "%shead:0x%02x, tail:0x%02x, pkt_num:%u, macid:%u, ac:%u\n"
-		, tag ? tag : "", info->head, info->tail, info->pkt_num, info->macid, info->ac
-	);
-}
-
-void dump_bcn_qinfo_8812a(void *sel, struct bcn_qinfo_8812a *info, const char *tag)
-{
-	//if (info->pkt_num)
-	DBG_871X_SEL_NL(sel, "%shead:0x%02x, pkt_num:%u\n"
-		, tag ? tag : "", info->head, info->pkt_num
-	);
-}
-
-void dump_mac_qinfo_8812a(void *sel, _adapter *adapter)
-{
-	u32 q0_info;
-	u32 q1_info;
-	u32 q2_info;
-	u32 q3_info;
-	u32 q4_info;
-	u32 q5_info;
-	u32 q6_info;
-	u32 q7_info;
-	u32 mg_q_info;
-	u32 hi_q_info;
-	u16 bcn_q_info;
-
-	q0_info = rtw_read32(adapter, REG_Q0_INFO);
-	q1_info = rtw_read32(adapter, REG_Q1_INFO);
-	q2_info = rtw_read32(adapter, REG_Q2_INFO);
-	q3_info = rtw_read32(adapter, REG_Q3_INFO);
-	q4_info = rtw_read32(adapter, REG_Q4_INFO);
-	q5_info = rtw_read32(adapter, REG_Q5_INFO);
-	q6_info = rtw_read32(adapter, REG_Q6_INFO);
-	q7_info = rtw_read32(adapter, REG_Q7_INFO);
-	mg_q_info = rtw_read32(adapter, REG_MGQ_INFO);
-	hi_q_info = rtw_read32(adapter, REG_HGQ_INFO);
-	bcn_q_info = rtw_read16(adapter, REG_BCNQ_INFO);
-
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q0_info, "Q0 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q1_info, "Q1 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q2_info, "Q2 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q3_info, "Q3 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q4_info, "Q4 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q5_info, "Q5 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q6_info, "Q6 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&q7_info, "Q7 ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&mg_q_info, "MG ");
-	dump_qinfo_8812a(sel, (struct qinfo_8812a *)&hi_q_info, "HI ");
-	dump_bcn_qinfo_8812a(sel, (struct bcn_qinfo_8812a *)&bcn_q_info, "BCN ");
 }
 
 void GetHwReg8812A(PADAPTER padapter, u8 variable, u8 *pval)
@@ -6911,10 +6750,6 @@ _func_enter_;
 		case HW_VAR_CHK_HI_QUEUE_EMPTY:
 			val16 = rtw_read16(padapter, REG_TXPKT_EMPTY);
 			*pval = (val16 & BIT(10)) ? _TRUE:_FALSE;
-			break;
-
-		case HW_VAR_DUMP_MAC_QUEUE_INFO:
-			dump_mac_qinfo_8812a(pval, padapter);
 			break;
 
 		default:
@@ -7109,10 +6944,6 @@ u8 GetHalDefVar8812A(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval)
 			*(u8*)pval = TX_PAGE_BOUNDARY_WOWLAN_8812;
 			break;
 
-		case HAL_DEF_MACID_SLEEP:
-			*(u8*)pval = _TRUE; // support macid sleep
-			break;
-
 		default:
 			bResult = GetHalDefVar(padapter, variable, pval);
 			break;
@@ -7214,7 +7045,9 @@ void rtl8812_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->c2h_handler = c2h_handler_8812a;
 	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8812a;
 
-	pHalFunc->fill_h2c_cmd = FillH2CCmd_8812;
+#ifdef CONFIG_BT_COEXIST
+	pHalFunc->fill_h2c_cmd = &FillH2CCmd_8812;
+#endif // CONFIG_BT_COEXIST
 }
 
 

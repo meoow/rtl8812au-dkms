@@ -22,6 +22,8 @@
 #ifndef __INC_MP_MAC_HW_IMG_8812A_H
 #define __INC_MP_MAC_HW_IMG_8812A_H
 
+//static BOOLEAN CheckPositive(PDM_ODM_T pDM_Odm, const u4Byte Condition1, const u4Byte Condition2);
+//static BOOLEAN CheckNegative(PDM_ODM_T pDM_Odm, const u4Byte Condition1, const u4Byte Condition2);
 
 /******************************************************************************
 *                           MAC_REG.TXT
@@ -31,7 +33,8 @@ void
 ODM_ReadAndConfig_MP_8812A_MAC_REG( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-u4Byte ODM_GetVersion_MP_8812A_MAC_REG(void);
+u4Byte
+ODM_GetVersion_MP_8812A_MAC_REG(VOID);
 
 #endif
 #endif // end of HWIMG_SUPPORT

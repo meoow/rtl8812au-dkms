@@ -258,23 +258,89 @@ dm_InitGPIOSetting(
 	rtw_write8(Adapter, REG_GPIO_MUXCFG, tmp1byte);
 }
 
+// A mapping from HalData to ODM.
+ODM_BOARD_TYPE_E boardType(u8 InterfaceSel)
+{
+    ODM_BOARD_TYPE_E        board	= ODM_BOARD_DEFAULT;
+
+#ifdef CONFIG_PCI_HCI
+	INTERFACE_SELECT_PCIE   pcie 	= (INTERFACE_SELECT_PCIE)InterfaceSel;
+	switch (pcie) 
+	{
+        case INTF_SEL0_SOLO_MINICARD:       
+            board |= ODM_BOARD_MINICARD;
+            break;
+        case INTF_SEL1_BT_COMBO_MINICARD:   
+            board |= ODM_BOARD_BT;
+			board |= ODM_BOARD_MINICARD;
+            break;
+        default:
+            board = ODM_BOARD_DEFAULT;
+            break;
+	}                                
+
+#elif defined(CONFIG_USB_HCI)
+	INTERFACE_SELECT_USB    usb 	= (INTERFACE_SELECT_USB)InterfaceSel;
+	switch (usb) 
+	{
+	    case INTF_SEL1_USB_High_Power:      
+	        board |= ODM_BOARD_EXT_LNA;
+	        board |= ODM_BOARD_EXT_PA;			
+	        break;
+	    case INTF_SEL2_MINICARD:            
+	        board |= ODM_BOARD_MINICARD;
+	        break;
+	    case INTF_SEL4_USB_Combo:           
+	        board |= ODM_BOARD_BT;
+	        break;
+	    case INTF_SEL5_USB_Combo_MF:        
+	        board |= ODM_BOARD_BT;
+	        break;
+	    case INTF_SEL0_USB: 			
+	    case INTF_SEL3_USB_Solo:            			
+	    default:
+	        board = ODM_BOARD_DEFAULT;
+	        break;
+	}
+	
+#endif	
+	//DBG_871X("===> boardType(): (pHalData->InterfaceSel, pDM_Odm->BoardType) = (%d, %d)\n", InterfaceSel, board);
+
+	return board;
+}
+
 //============================================================
 // functions
 //============================================================
 static void Init_ODM_ComInfo_8812(PADAPTER	Adapter)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
+	EEPROM_EFUSE_PRIV	*pEEPROM = GET_EEPROM_EFUSE_PRIV(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
-
 	u8	cut_ver,fab_ver;
+	u8	BoardType = ODM_BOARD_DEFAULT;
+	
+	//
+	// Init Value
+	//
+	_rtw_memset(pDM_Odm,0,sizeof(*pDM_Odm));
+	
+	pDM_Odm->Adapter = Adapter;	
+	
+	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_PLATFORM,ODM_CE);
 
-	Init_ODM_ComInfo(Adapter);
+	if (Adapter->interface_type == RTW_GSPI)
+		ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_INTERFACE,ODM_ITRF_SDIO);
+	else
+		ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_INTERFACE,Adapter->interface_type);
+
 
 	if (IS_HARDWARE_TYPE_8812(Adapter))
 		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_IC_TYPE, ODM_RTL8812);
 	else if (IS_HARDWARE_TYPE_8821(Adapter))
 		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_IC_TYPE, ODM_RTL8821);
+
 
 	fab_ver = ODM_TSMC;
 	if(IS_A_CUT(pHalData->VersionID))
@@ -293,10 +359,75 @@ static void Init_ODM_ComInfo_8812(PADAPTER	Adapter)
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_FAB_VER,fab_ver);		
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_CUT_VER,cut_ver);
 
+	ODM_CmnInfoInit(pDM_Odm,	ODM_CMNINFO_MP_TEST_CHIP,IS_NORMAL_CHIP(pHalData->VersionID));
+
+	//1 ======= BoardType: ODM_CMNINFO_BOARD_TYPE =======
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+	if(pHalData->InterfaceSel == INTF_SEL1_USB_High_Power)
+	{
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_PA, 1);
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_LNA, 1);
+	}
+	else
+	{
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_PA, pHalData->ExternalPA_2G);
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_LNA, 0);
+	}
+#else
+	// PCIE no external PA now???
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_PA, 0);
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_LNA, 0);
+#endif
+
+	if (pHalData->ExternalLNA_2G != 0) {
+		BoardType |= ODM_BOARD_EXT_LNA;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_LNA, 1);
+	}
+	if (pHalData->ExternalLNA_5G != 0) {
+		BoardType |= ODM_BOARD_EXT_LNA_5G;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_5G_EXT_LNA, 1);
+	}
+	if (pHalData->ExternalPA_2G != 0) {
+		BoardType |= ODM_BOARD_EXT_PA;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_PA, 1);
+	}
+	if (pHalData->ExternalPA_5G != 0) {
+		BoardType |= ODM_BOARD_EXT_PA_5G;
+		ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_5G_EXT_PA, 1);
+	}
+
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_BOARD_TYPE, BoardType);
+
+	//1 ============== End of BoardType ==============
+
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_GPA, pHalData->TypeGPA);
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_APA, pHalData->TypeAPA);
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_GLNA, pHalData->TypeGLNA);
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_ALNA, pHalData->TypeALNA);
+
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RFE_TYPE, pHalData->RFEType);
+
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_TRSW, 0);
+
+	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_PATCH_ID,pEEPROM->CustomerID);
+	//	ODM_CMNINFO_BINHCT_TEST only for MP Team
+	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_BWIFI_TEST,Adapter->registrypriv.wifi_spec);
+		
+	
+	if(pHalData->rf_type == RF_1T1R){
+		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_1T1R);		
+	}
+	else if(pHalData->rf_type == RF_2T2R){
+		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_2T2R);		
+	}
+	else if(pHalData->rf_type == RF_1T2R){		
+		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_1T2R);		
+	}
+
+	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RFE_TYPE, pHalData->RFEType);
+
  	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_ANTENNA_TYPE, pHalData->TRxAntDivType);
-
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_IQKFWOFFLOAD, pHalData->RegIQKFWOffload);
-
+	
 	#ifdef CONFIG_DISABLE_ODM
 	pdmpriv->InitODMFlag = 0;
 	#else
@@ -312,24 +443,25 @@ static void Init_ODM_ComInfo_8812(PADAPTER	Adapter)
 }
 static void Update_ODM_ComInfo_8812(PADAPTER	Adapter)
 {
+	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
+	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
+	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(Adapter);
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;	
+	int i;
 
 	pdmpriv->InitODMFlag = 0
 		| ODM_BB_DIG
 		| ODM_BB_RA_MASK
 		| ODM_BB_FA_CNT
 		| ODM_BB_RSSI_MONITOR
-		| ODM_BB_CFO_TRACKING
 		| ODM_RF_TX_PWR_TRACK
 		| ODM_MAC_EDCA_TURBO
-		| ODM_BB_NHM_CNT
-//		| ODM_BB_PWR_TRAIN
+#ifdef CONFIG_ODM_ADAPTIVITY
+		| ODM_BB_ADAPTIVITY
+#endif
 		;
-
-	if (rtw_odm_adaptivity_needed(Adapter) == _TRUE)
-		pdmpriv->InitODMFlag |= ODM_BB_ADAPTIVITY;
 
 	if(pHalData->AntDivCfg)
 		pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
@@ -348,8 +480,41 @@ static void Update_ODM_ComInfo_8812(PADAPTER	Adapter)
 #endif//CONFIG_DISABLE_ODM
 
 	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,pdmpriv->InitODMFlag);
-
+	
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_TX_UNI,&(Adapter->xmitpriv.tx_bytes));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_RX_UNI,&(Adapter->recvpriv.rx_bytes));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_WM_MODE,&(pmlmeext->cur_wireless_mode));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BAND,&(pHalData->CurrentBandType));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_FORCED_RATE,&(pHalData->ForcedDataRate));
+	
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_SEC_CHNL_OFFSET,&(pHalData->nCur40MhzPrimeSC));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_SEC_MODE,&(Adapter->securitypriv.dot11PrivacyAlgrthm));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BW,&(pHalData->CurrentChannelBW ));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_CHNL,&( pHalData->CurrentChannel));	
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_NET_CLOSED,&( Adapter->net_closed));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_MP_MODE,&(Adapter->registrypriv.mp_mode));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_FORCED_IGI_LB,&(pHalData->u1ForcedIgiLb));
+	//================= only for 8192D   =================
+	/*
+	//pHalData->CurrentBandType92D
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_DMSP_GET_VALUE,&(pDM_Odm->u1Byte_temp));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BUDDY_ADAPTOR,&(pDM_Odm->PADAPTER_temp));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_DMSP_IS_MASTER,&(pDM_Odm->u1Byte_temp));
+	//================= only for 8192D   =================
+	// driver havn't those variable now
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BT_OPERATION,&(pDM_Odm->u1Byte_temp));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BT_DISABLE_EDCA,&(pDM_Odm->u1Byte_temp));
+	*/
+	
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_SCAN,&(pmlmepriv->bScanInProcess));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_POWER_SAVING,&(pwrctrlpriv->bpower_saving));
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_ANTENNA_TYPE, pHalData->TRxAntDivType);
+
+	for(i=0; i< NUM_STA; i++)
+	{
+		//pDM_Odm->pODM_StaInfo[i] = NULL;
+		ODM_CmnInfoPtrArrayHook(pDM_Odm, ODM_CMNINFO_STA_STATUS,i,NULL);
+	}	
 }
 
 void
@@ -440,7 +605,6 @@ rtl8812_HalDmWatchDog(
 	{
 		u8	bLinked=_FALSE;
 		u8	bsta_state=_FALSE;
-		u8	bBtDisabled = _TRUE;
 
 		#ifdef CONFIG_DISABLE_ODM
 		pHalData->odmpriv.SupportAbility = 0;
@@ -463,11 +627,6 @@ rtl8812_HalDmWatchDog(
 		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);
 		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_STATION_STATE, bsta_state);
 
-#ifdef CONFIG_BT_COEXIST
-		bBtDisabled = rtw_btcoex_IsBtDisabled(Adapter);
-#endif // CONFIG_BT_COEXIST
-		ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_BT_ENABLED, ((bBtDisabled == _TRUE)?_FALSE:_TRUE));
-
 		ODM_DMWatchdog(&pHalData->odmpriv);
 			
 	}
@@ -487,10 +646,17 @@ void rtl8812_init_dm_priv(IN PADAPTER Adapter)
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T 		podmpriv = &pHalData->odmpriv;
-
-	
 	_rtw_memset(pdmpriv, 0, sizeof(struct dm_priv));
 	//_rtw_spinlock_init(&(pHalData->odm_stainfo_lock));
+	Init_ODM_ComInfo_8812(Adapter);
+#ifdef CONFIG_SW_ANTENNA_DIVERSITY
+	//_init_timer(&(pdmpriv->SwAntennaSwitchTimer),  Adapter->pnetdev , odm_SW_AntennaSwitchCallback, Adapter);	
+	ODM_InitAllTimers(podmpriv );	
+#endif
+	ODM_InitDebugSetting(podmpriv);
+
+	pHalData->RegRFPathS1 = 0;
+	pHalData->TxPwrInPercentage = TX_PWR_PERCENTAGE_3;
 
 #ifdef CONFIG_BT_COEXIST
 	/* firmware size issue, btcoex fw doesn't support IQK offload */
@@ -500,13 +666,6 @@ void rtl8812_init_dm_priv(IN PADAPTER Adapter)
 		pHalData->RegIQKFWOffload = 1;
 		rtw_sctx_init(&pHalData->iqk_sctx, 0);
 	}
-
-	Init_ODM_ComInfo_8812(Adapter);
-	ODM_InitAllTimers(podmpriv );	
-	PHYDM_InitDebugSetting(podmpriv);
-
-	pHalData->TxPwrInPercentage = TX_PWR_PERCENTAGE_3;
-
 }
 
 void rtl8812_deinit_dm_priv(IN PADAPTER Adapter)
@@ -515,7 +674,10 @@ void rtl8812_deinit_dm_priv(IN PADAPTER Adapter)
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T 		podmpriv = &pHalData->odmpriv;
 	//_rtw_spinlock_free(&pHalData->odm_stainfo_lock);
+#ifdef CONFIG_SW_ANTENNA_DIVERSITY
+	//_cancel_timer_ex(&pdmpriv->SwAntennaSwitchTimer);	
 	ODM_CancelAllTimers(podmpriv);	
+#endif
 }
 
 

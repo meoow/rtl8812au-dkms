@@ -28,10 +28,6 @@
 	#include <linux/init.h>
 	#include <linux/slab.h>
 	#include <linux/module.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0))
-	#include <linux/signal.h>
-	#include <linux/sched/signal.h>
-#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,5))
 	#include <linux/kref.h>
 #endif
@@ -50,6 +46,9 @@
 #endif
 	#include <linux/sem.h>
 	#include <linux/sched.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0))
+	#include <linux/sched/signal.h>
+#endif
 	#include <linux/etherdevice.h>
 	#include <linux/wireless.h>
 	#include <net/iw_handler.h>

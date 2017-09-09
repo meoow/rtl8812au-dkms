@@ -482,7 +482,7 @@
 #define		RF_TX_G3					0x22	// 
 
 #define		RF_TX_BB1					0x23	// 
-#define		RF_T_METER_92D			0x42
+
 #define		RF_T_METER					0x42	// 
 
 #define		RF_SYN_G1					0x25	// RF TX Power control
